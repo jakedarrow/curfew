@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curfew — Architectural & UX Audit Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d16;
+      --bg-surface: #0f172a;
+      --card-bg: rgba(18, 26, 47, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --card-border-hover: rgba(99, 102, 241, 0.35);
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --primary-glow: rgba(99, 102, 241, 0.25);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.2);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.2);
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.2);
+      --purple: #a855f7;
+      --cyan: #06b6d4;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(16, 185, 129, 0.06) 0px, transparent 50%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: var(--font-body);
+      line-height: 1.6;
+      padding-bottom: 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* HEADER & HERO */
+    header {
+      margin-bottom: 40px;
+      position: relative;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+
+    .app-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #4f46e5, #1e1b4b);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px var(--primary-glow);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .app-icon svg {
+      width: 32px;
+      height: 32px;
+      fill: #fde047;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, #ffffff 40%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .tagline {
+      color: var(--text-muted);
+      font-size: 16px;
+      max-width: 750px;
+      margin-top: 4px;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    .kpi-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      backdrop-filter: blur(16px);
+      transition: all 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      border-color: var(--card-border-hover);
+      transform: translateY(-2px);
+    }
+
+    .kpi-num {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .kpi-label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    /* NAVIGATION TABS */
+    .tab-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--card-border);
+      margin: 40px 0 32px 0;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 600;
+      padding: 12px 20px;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      position: relative;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .tab-btn.active {
+      color: #818cf8;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: #818cf8;
+      border-radius: 3px 3px 0 0;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    /* SECTION STYLING */
+    .section-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .section-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-header {
+      margin-bottom: 24px;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    /* WINDOW DIAGNOSIS VISUALIZER */
+    .diag-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+
+    @media (max-width: 900px) {
+      .diag-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .diag-box {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+    }
+
+    .diag-box h3 {
+      font-family: var(--font-display);
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stack-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .stack-level {
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: var(--font-mono);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.2s ease;
+    }
+
+    .stack-level:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateX(4px);
+    }
+
+    .stack-level.target {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 0 16px rgba(99, 102, 241, 0.15);
+    }
+
+    .stack-level.danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+    }
+
+    .stack-level.safe {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-primary { background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+    .badge-amber { background: var(--amber-glow); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-red { background: var(--red-glow); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .badge-green { background: var(--green-glow); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-purple { background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+
+    .event-flow-chart {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 13px;
+    }
+
+    .flow-step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      flex-shrink: 0;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .flow-step-desc strong {
+      color: #f8fafc;
+    }
+
+    .flow-step-desc p {
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* FILTERABLE FINDINGS EXPLORER */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .filter-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .filter-pill {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-pill:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+    }
+
+    .filter-pill.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .search-input-box {
+      position: relative;
+      min-width: 260px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 13px;
+      padding: 8px 12px 8px 34px;
+      border-radius: 8px;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: #818cf8;
+      box-shadow: 0 0 12px var(--primary-glow);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 16px;
+      height: 16px;
+      fill: var(--text-dim);
+    }
+
+    .findings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .findings-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .finding-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 22px;
+      backdrop-filter: blur(16px);
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .finding-card:hover {
+      border-color: var(--card-border-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+
+    .finding-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .finding-title {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .finding-body {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .finding-solution {
+      background: rgba(15, 23, 42, 0.7);
+      border-left: 3px solid #818cf8;
+      padding: 10px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-top: auto;
+    }
+
+    .finding-solution strong {
+      color: #818cf8;
+      display: block;
+      margin-bottom: 2px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* PROPOSED ROADMAP & WIREFRAMES */
+    .mockup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    @media (max-width: 900px) {
+      .mockup-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .mockup-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      backdrop-filter: blur(16px);
+    }
+
+    .mockup-card h3 {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .mockup-card p.sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    /* macOS Window Frame Simulation */
+    .mac-window {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .mac-titlebar {
+      height: 32px;
+      background: rgba(30, 41, 59, 0.8);
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .mac-buttons {
+      display: flex;
+      gap: 6px;
+    }
+
+    .mac-btn {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .mac-btn.close { background: #ef4444; }
+    .mac-btn.min { background: #f59e0b; }
+    .mac-btn.zoom { background: #10b981; }
+
+    .mac-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin: 0 auto;
+      transform: translateX(-18px);
+    }
+
+    .mac-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+    }
+
+    /* Interactive Menu Popover Mockup */
+    .menu-popover {
+      width: 320px;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .popover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 10px;
+    }
+
+    .popover-curfew-status {
+      font-weight: 700;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .popover-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      color: #cbd5e1;
+      transition: all 0.15s ease;
+    }
+
+    .popover-item:hover {
+      background: rgba(99, 102, 241, 0.2);
+      color: #ffffff;
+    }
+
+    .popover-separator {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 6px 0;
+    }
+
+    /* Floating Warning Pill Mockup */
+    .floating-warning-pill {
+      background: rgba(26, 32, 48, 0.96);
+      border: 1.5px solid rgba(251, 191, 36, 0.65);
+      box-shadow: 0 0 28px rgba(251, 191, 36, 0.32), inset 0 0 14px rgba(251, 191, 36, 0.1);
+      border-radius: 24px;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      width: 100%;
+      max-width: 440px;
+      backdrop-filter: blur(16px);
+      transition: all 0.2s ease;
+    }
+
+    .pill-content {
+      flex: 1;
+    }
+
+    .pill-title {
+      font-weight: 700;
+      font-size: 13px;
+      color: #ffffff;
+    }
+
+    .pill-sub {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    .pill-btn {
+      background: rgba(251, 191, 36, 0.15);
+      border: 1px solid rgba(251, 191, 36, 0.4);
+      color: #fbbf24;
+      padding: 5px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .pill-btn:hover {
+      background: rgba(251, 191, 36, 0.28);
+      color: #ffffff;
+    }
+
+    /* DECISION CHECKPOINTS MATRIX */
+    .checkpoints-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 16px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 14px;
+    }
+
+    .checkpoints-table th,
+    .checkpoints-table td {
+      padding: 14px 18px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .checkpoints-table th {
+      background: rgba(15, 23, 42, 0.85);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .checkpoints-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .checkpoints-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .decision-btn-group {
+      display: flex;
+      gap: 6px;
+    }
+
+    .vote-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .vote-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #ffffff;
+    }
+
+    .vote-btn.selected-approve {
+      background: rgba(16, 185, 129, 0.25);
+      border-color: #10b981;
+      color: #34d399;
+    }
+
+    .vote-btn.selected-defer {
+      background: rgba(245, 158, 11, 0.25);
+      border-color: #f59e0b;
+      color: #fbbf24;
+    }
+
+    .vote-btn.selected-reject {
+      background: rgba(239, 68, 68, 0.25);
+      border-color: #ef4444;
+      color: #f87171;
+    }
+
+    /* CODE BLOCK STYLING */
+    pre code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #a5b4fc;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- HERO HEADER -->
+    <header>
+      <div class="brand-row">
+        <div class="app-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Curfew: Architectural & UX Audit Report</h1>
+          <p class="tagline">Comprehensive analysis of window hierarchy, event dispatching, permissions fragility, and scope rationalization for the macOS sleep recovery limiter.</p>
+        </div>
+      </div>
+
+      <!-- KPI SUMMARY -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-num" style="color: #ef4444;">6</div>
+          <div class="kpi-label">Window & Lockout Traps Diagnosed</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num" style="color: #f59e0b;">4</div>
+          <div class="kpi-label">Permissions & IPC Fragilities</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num" style="color: #06b6d4;">3</div>
+          <div class="kpi-label">Scope Deprecations (Cuts)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-num" style="color: #10b981;">4</div>
+          <div class="kpi-label">Core Workflows to Polish</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- NAVIGATION TABS -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('system-diag')">1. Window-Stack & Event Diagnosis</button>
+      <button class="tab-btn" onclick="switchTab('findings-explorer')">2. Interactive Findings & Ideas Explorer</button>
+      <button class="tab-btn" onclick="switchTab('roadmap-ux')">3. Roadmap & UX Mockups</button>
+      <button class="tab-btn" onclick="switchTab('checkpoints')">4. Decision Checkpoints</button>
+    </nav>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: SYSTEM & WINDOW-STACK DIAGNOSIS                                    -->
+    <!-- ========================================================================= -->
+    <section id="system-diag" class="section-content active">
+      <div class="section-header">
+        <h2 class="section-title">System & Window-Stack Breakdown</h2>
+        <p class="section-desc">Why the legacy implementation caused dead-end machine lockouts, dropped keystrokes, and runloop freezes.</p>
+      </div>
+
+      <div class="diag-container">
+        <!-- DIAG 1: WINDOW LEVEL SCALE -->
+        <div class="diag-box">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+            macOS Window Server Hierarchy
+          </h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">AppKit layers windows by absolute CGWindowLevel. Elevated levels without proper activation trap user inputs behind invisible barriers.</p>
+
+          <div class="stack-diagram">
+            <div class="stack-level danger">
+              <span>CGShieldingWindowLevel (2,147,483,630)</span>
+              <span class="badge badge-red">Hard Lock Trap</span>
+            </div>
+            <div class="stack-level danger">
+              <span>NSWindow.Level.screenSaver (1,000)</span>
+              <span class="badge badge-red">Blocks System UI</span>
+            </div>
+            <div class="stack-level target">
+              <span>NSWindow.Level.statusBar (25) &mdash; Enforcement</span>
+              <span class="badge badge-primary">Curfew Production</span>
+            </div>
+            <div class="stack-level safe">
+              <span>NSWindow.Level.floating (3) &mdash; Dry Run / Test</span>
+              <span class="badge badge-green">Safe Simulation</span>
+            </div>
+            <div class="stack-level">
+              <span>NSWindow.Level.normal (0) &mdash; Standard Apps</span>
+              <span class="badge" style="background: rgba(255,255,255,0.1); color: #94a3b8;">Normal Apps</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- DIAG 2: EVENT DISPATCH FLOW -->
+        <div class="diag-box">
+          <h3>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Event Routing & The 3 Input Barriers
+          </h3>
+          <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">Trace of a keystroke from hardware interrupt to application dispatch:</p>
+
+          <div class="event-flow-chart">
+            <div class="flow-step">
+              <div class="flow-step-num">1</div>
+              <div class="flow-step-desc">
+                <strong>Hardware Interrupt (IOHIDFamily)</strong>
+                <p>Delivers raw scan code to macOS Window Server.</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-step-num">2</div>
+              <div class="flow-step-desc">
+                <strong>Carbon HotKey vs. Event Taps</strong>
+                <p>Carbon <code>RegisterEventHotKey</code> catches hotkeys globally without Accessibility. <code>NSEvent.addGlobalMonitor</code> silently drops events without TCC.</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-step-num">3</div>
+              <div class="flow-step-desc">
+                <strong>Target Key Window Dispatch</strong>
+                <p>Event delivered only to active key window. If secondary display captures click, primary window loses focus.</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="flow-step-num">4</div>
+              <div class="flow-step-desc">
+                <strong>First Responder Interception (The NSTextView Trap)</strong>
+                <p>When typing in a task field, <code>NSTextView</code> eats <code>Escape</code> as <code>cancelOperation:</code>, starving the window's <code>keyDown</code>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROOT CAUSE SUMMARY CARDS -->
+      <div class="findings-grid">
+        <div class="finding-card">
+          <div class="finding-header">
+            <div class="finding-title">1. The Accessory App Activation Void</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            Configured as <code>.accessory</code>, the app lacks standard Dock or menubar activation. An elevated borderless window covers all pixels, but if macOS transfers focus to a background process, user keystrokes are routed into the void.
+          </div>
+          <div class="finding-solution">
+            <strong>Architecture Fix</strong>
+            Use Carbon global hotkeys (<code>Cmd+Shift+Esc</code>) that operate at WindowServer level without requiring app activation.
+          </div>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-header">
+            <div class="finding-title">2. NSTextView First-Responder Trap</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            When typing intent into the late-night request box, <code>NSTextView</code> acts as the first responder and consumes <code>Escape</code>, preventing window keydown handlers from running.
+          </div>
+          <div class="finding-solution">
+            <strong>Architecture Fix</strong>
+            Override <code>cancelOperation(_:)</code> and <code>performKeyEquivalent(with:)</code> on the window to catch Escape before child views consume it.
+          </div>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-header">
+            <div class="finding-title">3. Multi-Monitor Asymmetric Focus</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            Secondary screens received blank shield windows with <code>canBecomeKey = true</code>. Clicking a secondary screen made the empty window key, freezing typing in the primary card.
+          </div>
+          <div class="finding-solution">
+            <strong>Architecture Fix</strong>
+            Enforce <code>canBecomeKey = false</code> on secondary windows and redirect all clicks to refocus the primary card.
+          </div>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-header">
+            <div class="finding-title">4. RunLoop Starvation of Safety Timers</div>
+            <span class="badge badge-amber">Timing Bug</span>
+          </div>
+          <div class="finding-body">
+            Default <code>Timer.scheduledTimer</code> runs on <code>.default</code> RunLoop mode. Any modal drag, mouse tracking, or menu click pauses the timer, preventing auto-dismiss from firing.
+          </div>
+          <div class="finding-solution">
+            <strong>Architecture Fix</strong>
+            Schedule all timers on <code>RunLoop.main</code> in <code>.common</code> mode for uninterrupted execution.
+          </div>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-header">
+            <div class="finding-title">5. The Bedtime Re-Lock Loop</div>
+            <span class="badge badge-red">State Trap</span>
+          </div>
+          <div class="finding-body">
+            Exiting test mode between 10 PM and 5 AM immediately re-evaluated <code>realCurfew == true</code>, locking the screen again on the next line of code without test safeguards.
+          </div>
+          <div class="finding-solution">
+            <strong>Architecture Fix</strong>
+            Implemented <code>isCurfewManuallySuppressed</code> flag to break state loops until deliberate reset or morning rollover.
+          </div>
+        </div>
+
+        <div class="finding-card">
+          <div class="finding-header">
+            <div class="finding-title">6. Stale Display Geometry on Hotplug</div>
+            <span class="badge badge-amber">Window Glitch</span>
+          </div>
+          <div class="finding-body">
+            Connecting or disconnecting displays or closing MacBook lid left windows with stale dimensions, causing black clipping boxes or exposed unshielded areas.
+          </div>
+          <div class="finding-solution">
+            <strong>Architecture Fix</strong>
+            Observer for <code>didChangeScreenParametersNotification</code> to dynamically recreate window frames.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: INTERACTIVE FINDINGS EXPLORER                                      -->
+    <!-- ========================================================================= -->
+    <section id="findings-explorer" class="section-content">
+      <div class="section-header">
+        <h2 class="section-title">Interactive Findings & Scope Rationalization</h2>
+        <p class="section-desc">Detailed inventory of system risks, fragile IPC mechanisms, and candidate features for deprecation vs. enhancement.</p>
+      </div>
+
+      <!-- FILTER & SEARCH BAR -->
+      <div class="filter-bar">
+        <div class="filter-pills">
+          <button class="filter-pill active" onclick="filterFindings('all')">All Items (15)</button>
+          <button class="filter-pill" onclick="filterFindings('trap')">🔴 Critical Traps (5)</button>
+          <button class="filter-pill" onclick="filterFindings('fragile')">🟡 Permissions & IPC (4)</button>
+          <button class="filter-pill" onclick="filterFindings('cut')">✂️ Scope Cuts (3)</button>
+          <button class="filter-pill" onclick="filterFindings('polish')">✨ Core Polishes (3)</button>
+        </div>
+        <div class="search-input-box">
+          <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search findings or fixes..." onkeyup="searchFindings()">
+        </div>
+      </div>
+
+      <!-- FINDINGS CARDS -->
+      <div class="findings-grid" id="findingsContainer">
+        <!-- ITEM 1 -->
+        <div class="finding-card" data-category="trap">
+          <div class="finding-header">
+            <div class="finding-title">Accessibility TCC Silent Failure</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            <code>NSEvent.addGlobalMonitorForEvents</code> silently yields zero events if the app lacks Accessibility permissions in System Settings. When launched from Terminal or debug builds, global hotkeys failed without error.
+          </div>
+          <div class="finding-solution">
+            <strong>Remedy Implemented</strong>
+            Carbon <code>RegisterEventHotKey</code> delivers global shortcuts at WindowServer level with zero permission prompts required.
+          </div>
+        </div>
+
+        <!-- ITEM 2 -->
+        <div class="finding-card" data-category="trap">
+          <div class="finding-header">
+            <div class="finding-title">Modal Tracking Starvation</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            Safety countdowns and test auto-dismissals scheduled on <code>.default</code> RunLoop mode stopped executing whenever a user clicked, dragged, or opened a menu.
+          </div>
+          <div class="finding-solution">
+            <strong>Remedy Implemented</strong>
+            All countdown and safety timers now explicitly register with <code>RunLoop.main</code> in <code>.common</code> mode.
+          </div>
+        </div>
+
+        <!-- ITEM 3 -->
+        <div class="finding-card" data-category="trap">
+          <div class="finding-header">
+            <div class="finding-title">Field Editor Keyboard Trapping</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            Clicking into text fields transferred first responder to <code>NSTextView</code>, which ate Escape keys as cancel operations, preventing the user from escaping test mode.
+          </div>
+          <div class="finding-solution">
+            <strong>Remedy Implemented</strong>
+            Overrode <code>performKeyEquivalent</code> and <code>cancelOperation</code> directly on the custom window subclass.
+          </div>
+        </div>
+
+        <!-- ITEM 4 -->
+        <div class="finding-card" data-category="trap">
+          <div class="finding-header">
+            <div class="finding-title">Bedtime State Machine Re-Lock Trap</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            Exiting a test lock between 10:00 PM and 5:00 AM immediately called <code>lockAllScreens(isTestMode: false)</code>, re-engaging hard curfew on the very next line of code without test safeguards.
+          </div>
+          <div class="finding-solution">
+            <strong>Remedy Implemented</strong>
+            Added <code>isCurfewManuallySuppressed</code> state flag that survives until morning wake or deliberate re-engagement.
+          </div>
+        </div>
+
+        <!-- ITEM 5 -->
+        <div class="finding-card" data-category="trap">
+          <div class="finding-header">
+            <div class="finding-title">Secondary Display Focus Hijack</div>
+            <span class="badge badge-red">Critical Trap</span>
+          </div>
+          <div class="finding-body">
+            Clicking a secondary display made a headless window the key window, preventing user keystrokes from reaching the interactive card on the primary display.
+          </div>
+          <div class="finding-solution">
+            <strong>Remedy Implemented</strong>
+            Disabled key status on secondary windows (<code>canBecomeKey = false</code>) and routed clicks to refocus the primary card.
+          </div>
+        </div>
+
+        <!-- ITEM 6: FRAGILITY -->
+        <div class="finding-card" data-category="fragile">
+          <div class="finding-header">
+            <div class="finding-title">AppleScript SMS Injection (Messages.app)</div>
+            <span class="badge badge-amber">Permissions Fragility</span>
+          </div>
+          <div class="finding-body">
+            <code>EmergencySMSBridge.swift</code> executes raw AppleScript to drive <code>Messages.app</code>. On macOS 14+, AppleScript automation triggers TCC prompts that can stall or fail silently if permissions are rejected.
+          </div>
+          <div class="finding-solution">
+            <strong>Recommendation</strong>
+            Gracefully handle AppleScript execution errors and provide a fallback local visual notification alert.
+          </div>
+        </div>
+
+        <!-- ITEM 7: FRAGILITY -->
+        <div class="finding-card" data-category="fragile">
+          <div class="finding-header">
+            <div class="finding-title">AppleScript Reminders Automation</div>
+            <span class="badge badge-amber">Permissions Fragility</span>
+          </div>
+          <div class="finding-body">
+            <code>RemindersBridge.swift</code> uses AppleScript string concatenation to create reminders. String escaping can fail on unexpected input, and automation permissions can fail.
+          </div>
+          <div class="finding-solution">
+            <strong>Recommendation</strong>
+            Replace AppleScript automation with Apple's native <code>EventKit</code> framework (<code>EKEventStore</code>) for type-safe, direct reminder creation.
+          </div>
+        </div>
+
+        <!-- ITEM 8: FRAGILITY -->
+        <div class="finding-card" data-category="fragile">
+          <div class="finding-header">
+            <div class="finding-title">Hardcoded SQLite HealthKit Database Path</div>
+            <span class="badge badge-amber">Architectural Fragility</span>
+          </div>
+          <div class="finding-body">
+            <code>HealthContextBridge.swift</code> directly reads <code>/Users/jakedarrow/Developer/PersonalTrainer/data/healthkit_history.db</code>. If the file is locked, moved, or has schema changes, it silently falls back.
+          </div>
+          <div class="finding-solution">
+            <strong>Recommendation</strong>
+            Establish a standardized JSON export or shared App Group container instead of raw SQLite path coupling across projects.
+          </div>
+        </div>
+
+        <!-- ITEM 9: FRAGILITY -->
+        <div class="finding-card" data-category="fragile">
+          <div class="finding-header">
+            <div class="finding-title">Plaintext TCP Local Bridge Server (Port 48200)</div>
+            <span class="badge badge-amber">Security / Network</span>
+          </div>
+          <div class="finding-body">
+            <code>LocalBridgeServer.swift</code> listens on unauthenticated HTTP on port 48200 with wildcard CORS (<code>Access-Control-Allow-Origin: *</code>). Any webpage in any browser could query or alter focus mode.
+          </div>
+          <div class="finding-solution">
+            <strong>Recommendation</strong>
+            Add a shared token secret or migrate to Native Messaging / URL schemes (<code>curfew://</code>).
+          </div>
+        </div>
+
+        <!-- ITEM 10: CUT -->
+        <div class="finding-card" data-category="cut">
+          <div class="finding-header">
+            <div class="finding-title">Wi-Fi SSID Location Profiling</div>
+            <span class="badge badge-amber">Deferred by User</span>
+          </div>
+          <div class="finding-body">
+            <code>WiFiTracker.swift</code> uses CoreWLAN <code>CWWiFiClient</code> to inspect SSIDs. While flagged as a potential scope reduction, user opted to keep it in the codebase for potential future implementation.
+          </div>
+          <div class="finding-solution" style="border-left-color: #f59e0b;">
+            <strong>Decision: Defer (Retained)</strong>
+            Kept intact in codebase (<code>WiFiTracker.swift</code>) per user direction. Not deprecated or removed.
+          </div>
+        </div>
+
+        <!-- ITEM 11: CUT -->
+        <div class="finding-card" data-category="cut">
+          <div class="finding-header">
+            <div class="finding-title">Browser Extension IPC Bridge (Port 48200)</div>
+            <span class="badge badge-amber">Deferred by User</span>
+          </div>
+          <div class="finding-body">
+            The port 48200 local TCP server exists to communicate with browser extensions. User opted to retain this infrastructure in the codebase for potential future extension integrations.
+          </div>
+          <div class="finding-solution" style="border-left-color: #f59e0b;">
+            <strong>Decision: Defer (Retained)</strong>
+            Kept intact in codebase (<code>LocalBridgeServer.swift</code>) per user direction. Not deprecated or removed.
+          </div>
+        </div>
+
+        <!-- ITEM 12: CUT -->
+        <div class="finding-card" data-category="cut">
+          <div class="finding-header">
+            <div class="finding-title">CUT: Weekend App Whitelist Rules</div>
+            <span class="badge badge-primary">Scope Rationalization</span>
+          </div>
+          <div class="finding-body">
+            <code>Config.weekendAllowedApps</code> defined lists of apps (Xcode, Logic Pro, etc.) but was never actually enforced in UI. Over-complicated rules dilute the core promise: sleep recovery.
+          </div>
+          <div class="finding-solution">
+            <strong>Decision: Cut / Simplify</strong>
+            Remove unused weekend whitelists. Keep weekends completely unrestricted so Curfew does one job perfectly: weeknight sleep.
+          </div>
+        </div>
+
+        <!-- ITEM 13: POLISH -->
+        <div class="finding-card" data-category="polish">
+          <div class="finding-header">
+            <div class="finding-title">POLISH: Pre-Lock Warning Experience</div>
+            <span class="badge badge-green">Implemented</span>
+          </div>
+          <div class="finding-body">
+            Screen lockouts must never feel jarring. Pre-lock warnings at 15m, 5m, and 1m allow users to save audio projects or code branches gracefully before curfew hits.
+          </div>
+          <div class="finding-solution" style="border-left-color: #10b981;">
+            <strong>Implemented in Code & Mockup</strong>
+            Floating amber HUD pill with soothing golden glow (`#FBBF24`), stress-free copy ("Curfew in 5 minutes • Wrap up work"), zero alarming icons, and "Got It" action.
+          </div>
+        </div>
+
+        <!-- ITEM 14: POLISH -->
+        <div class="finding-card" data-category="polish">
+          <div class="finding-header">
+            <div class="finding-title">POLISH: Sleep Context & "Smart No" Arbitration</div>
+            <span class="badge badge-green">Implemented</span>
+          </div>
+          <div class="finding-body">
+            The agency intent template ("I need X mins so I can Y...") evaluated against 7-day sleep debt is the crown jewel feature. Denied requests automatically schedule follow-up tasks.
+          </div>
+          <div class="finding-solution" style="border-left-color: #10b981;">
+            <strong>Implemented with Native EventKit</strong>
+            Converted <code>RemindersBridge.swift</code> to Apple's native <code>EventKit</code> (<code>EKEventStore</code>) with AppleScript fallback, eliminating scripting injection bugs.
+          </div>
+        </div>
+
+        <!-- ITEM 15: POLISH -->
+        <div class="finding-card" data-category="polish">
+          <div class="finding-header">
+            <div class="finding-title">POLISH: Standalone Menu Bar Experience</div>
+            <span class="badge badge-green">Implemented</span>
+          </div>
+          <div class="finding-body">
+            The menu bar item is the primary interface. Upgrading from plain text to dynamic SF Symbols with clear status popovers makes Curfew feel like an Apple-designed utility.
+          </div>
+          <div class="finding-solution" style="border-left-color: #10b981;">
+            <strong>Implemented in Code</strong>
+            Dynamic SF Symbols (<code>hourglass</code>, <code>timer</code>, <code>moon.zzz.fill</code>), active screen time counter eliminated, and safe sandbox preview actions integrated.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: ROADMAP & UX MOCKUPS                                               -->
+    <!-- ========================================================================= -->
+    <section id="roadmap-ux" class="section-content">
+      <div class="section-header">
+        <h2 class="section-title">Proposed UX Mockups & Visual Roadmap</h2>
+        <p class="section-desc">Interactive visual wireframes representing the target state for Curfew's core interactions.</p>
+      </div>
+
+      <div class="mockup-grid">
+        <!-- MOCKUP 1: MENU BAR POPOVER -->
+        <div class="mockup-card">
+          <h3>1. Curfew Native Menu Bar Popover</h3>
+          <p class="sub">Replaces long flat text dropdowns with a sleek macOS popover.</p>
+
+          <div class="mac-window">
+            <div class="mac-titlebar">
+              <div class="mac-buttons">
+                <div class="mac-btn close"></div>
+                <div class="mac-btn min"></div>
+                <div class="mac-btn zoom"></div>
+              </div>
+              <div class="mac-title">Menu Bar Popover</div>
+            </div>
+            <div class="mac-body">
+              <div class="menu-popover">
+                <div class="popover-header">
+                  <div class="popover-curfew-status">
+                    <span style="color: #818cf8;">⏳</span> Curfew at 10:00 PM
+                  </div>
+                  <span class="badge badge-primary">Weeknight</span>
+                </div>
+
+                <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">
+                  7-Day Cumulative Sleep Debt: <strong style="color: #f87171;">5.9h</strong> (Target: 8.0h)
+                </div>
+
+                <div class="popover-separator"></div>
+
+                <div class="popover-item">
+                  <span>Preview Curfew (Safe Sandbox)</span>
+                  <span style="font-size: 11px; color: #64748b;">⌘P</span>
+                </div>
+                <div class="popover-item">
+                  <span>Simulate Curfew (Dry Run 20s)</span>
+                  <span style="font-size: 11px; color: #64748b;">⌘T</span>
+                </div>
+                <div class="popover-item">
+                  <span>Simulate Pre-Lock Warning (1m)</span>
+                  <span style="font-size: 11px; color: #64748b;">⌘W</span>
+                </div>
+
+                <div class="popover-separator"></div>
+
+                <div class="popover-item" style="color: #f87171;">
+                  <span>Emergency Unlock & Reset</span>
+                  <span style="font-size: 11px; color: #64748b;">⌘⇧Esc</span>
+                </div>
+                <div class="popover-item">
+                  <span>Quit Curfew</span>
+                  <span style="font-size: 11px; color: #64748b;">⌘Q</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOCKUP 2: PRE-LOCK WARNING HUD -->
+        <div class="mockup-card">
+          <h3>2. Floating Pre-Lock Warning HUD</h3>
+          <p class="sub">Calm notification pill appearing 15m, 5m, and 1m before curfew with soothing warm amber glow.</p>
+
+          <div class="mac-window">
+            <div class="mac-titlebar">
+              <div class="mac-buttons">
+                <div class="mac-btn close"></div>
+                <div class="mac-btn min"></div>
+                <div class="mac-btn zoom"></div>
+              </div>
+              <div class="mac-title">Top-Center Screen Display</div>
+            </div>
+            <div class="mac-body">
+              <div class="floating-warning-pill">
+                <div class="pill-content">
+                  <div class="pill-title" style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #fbbf24; font-family: var(--font-mono); font-size: 11px; font-weight: 700; background: rgba(251, 191, 36, 0.18); padding: 2px 7px; border-radius: 6px;">10:00 PM</span>
+                    <span>Curfew in 5 minutes</span>
+                  </div>
+                  <div class="pill-sub" style="margin-top: 3px;">Bedtime begins soon &bull; Please wrap up and save your work</div>
+                </div>
+                <button class="pill-btn">Got It</button>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 10px; font-size: 11px; color: #94a3b8; font-style: italic;">
+            ✨ Refined: Stressful yellow warning triangle removed; soothing ambient yellow/amber glow with calm typography and "Got It" action applied.
+          </div>
+        </div>
+
+        <!-- MOCKUP 3: FULLSCREEN LOCK CARD -->
+        <div class="mockup-card">
+          <h3>3. Fullscreen Curfew Lock Card</h3>
+          <p class="sub">Centered card with sleep recovery context and hero sleep action.</p>
+
+          <div class="mac-window">
+            <div class="mac-titlebar">
+              <div class="mac-buttons">
+                <div class="mac-btn close"></div>
+                <div class="mac-btn min"></div>
+                <div class="mac-btn zoom"></div>
+              </div>
+              <div class="mac-title">Fullscreen Overlay Display</div>
+            </div>
+            <div class="mac-body" style="padding: 24px;">
+              <div style="width: 100%; max-width: 360px; background: rgba(18, 26, 47, 0.95); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 14px; padding: 20px; text-align: center;">
+                <span class="badge badge-amber" style="margin-bottom: 8px; display: inline-block;">Bedtime Curfew Active</span>
+                <div style="font-weight: 700; font-size: 17px; margin-bottom: 4px;">Locked for Sleep Recovery</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-bottom: 12px;">Last Night: 6.8h &bull; 7-Day Debt: 5.9h</div>
+
+                <button style="width: 100%; background: #4f46e5; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 8px;">
+                  Sleep Mac (Return)
+                </button>
+                <div style="display: flex; gap: 8px;">
+                  <button style="flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.1); color: #cbd5e1; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">Request Late-Night Task</button>
+                  <button style="flex: 1; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); color: #f87171; padding: 8px; border-radius: 6px; font-size: 11px; font-weight: 600;">Emergency Override</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MOCKUP 4: DEVELOPER DRY-RUN MODE & FULL LOCK SCREEN SANDBOX -->
+        <div class="mockup-card">
+          <h3>4. Developer Dry-Run Mode & Full Lock Screen Sandbox</h3>
+          <p class="sub">Renders the safety countdown banner docked above the complete interactive Curfew lock card.</p>
+
+          <div class="mac-window">
+            <div class="mac-titlebar">
+              <div class="mac-buttons">
+                <div class="mac-btn close"></div>
+                <div class="mac-btn min"></div>
+                <div class="mac-btn zoom"></div>
+              </div>
+              <div class="mac-title">Dry Run Test HUD & Live Lock Screen Sandbox</div>
+            </div>
+            <div class="mac-body" style="padding: 18px; display: flex; flex-direction: column; align-items: center;">
+              <!-- TOP SAFETY BANNER -->
+              <div style="width: 100%; max-width: 440px; background: rgba(245, 158, 11, 0.18); border: 1.5px solid rgba(245, 158, 11, 0.6); border-radius: 20px; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);">
+                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: #fbbf24;">
+                  Dry Run Active (Auto-unlock in 18s) &bull; Esc to Exit
+                </div>
+                <button onclick="simulateDryRunAction('exit')" style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.25); color: #ffffff; padding: 4px 12px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer;">
+                  Exit Test
+                </button>
+              </div>
+
+              <!-- FULL INTERACTIVE CURFEW LOCK CARD (SAME AS PRODUCTION) -->
+              <div id="mockupDryRunCard" style="width: 100%; max-width: 440px; background: rgba(18, 26, 47, 0.96); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; padding: 22px; text-align: center; box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);">
+                <span class="badge badge-amber" style="margin-bottom: 8px; display: inline-block;">DRY RUN TEST MODE</span>
+                <div style="font-weight: 700; font-size: 18px; margin-bottom: 4px; color: #ffffff;">Locked for Sleep Recovery</div>
+                <div style="font-size: 12px; color: #94a3b8; margin-bottom: 10px;">Screen time locked until 5:00 AM &bull; Work saved in memory</div>
+                <div style="font-family: var(--font-mono); font-size: 11px; color: #93c5fd; background: rgba(59, 130, 246, 0.12); border: 1px solid rgba(59, 130, 246, 0.2); padding: 5px 10px; border-radius: 6px; display: inline-block; margin-bottom: 14px;">
+                  Last Night: 6.8h &bull; 7-Day Debt: 5.9h
+                </div>
+
+                <!-- SLEEP MAC BUTTON (WITH TEST CONFIRMATION) -->
+                <button onclick="simulateDryRunAction('sleep')" style="width: 100%; background: #4f46e5; color: white; border: none; padding: 11px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; margin-bottom: 8px; transition: background 0.15s ease;">
+                  Sleep Mac (Return)
+                </button>
+                <div style="font-size: 10px; color: #fbbf24; margin-bottom: 12px; font-family: var(--font-mono);">
+                  ℹ️ Test Mode: prompts confirmation instead of sleeping computer
+                </div>
+
+                <!-- ACTION BUTTONS ROW -->
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                  <button onclick="simulateDryRunAction('request')" style="flex: 1; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.12); color: #cbd5e1; padding: 9px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                    Request Late-Night Task
+                  </button>
+                  <button onclick="simulateDryRunAction('emergency')" style="flex: 1; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); color: #f87171; padding: 9px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                    Emergency Override
+                  </button>
+                </div>
+
+                <div id="mockupActionFeedback" style="font-size: 11px; color: #a5b4fc; font-family: var(--font-mono); min-height: 18px;">
+                  Dispatches SMS alert in production. Click any button above to test!
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 12px; padding: 12px 16px; background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; font-size: 12px; color: #cbd5e1; line-height: 1.5;">
+            <strong style="color: #60a5fa;">💡 Clarification on Dry Run Mode:</strong>
+            The Dry Run window is <strong>not</strong> just the top banner. In both the codebase and this updated mockup, Dry Run renders the <strong>entire interactive Curfew Lock Card</strong> below the safety banner. This allows you to test <strong>Sleep Mac</strong> (with safe confirmation to avoid accidental sleep), test <strong>Request Late-Night Task</strong> (to verify IntentArbitrator and EventKit Reminders), and test <strong>Emergency Override</strong> before bedtime curfew arrives.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: DECISION CHECKPOINTS                                               -->
+    <!-- ========================================================================= -->
+    <section id="checkpoints" class="section-content">
+      <div class="section-header">
+        <h2 class="section-title">Architectural Decision Checkpoints</h2>
+        <p class="section-desc">Interactive voting matrix to establish consensus on scope reductions, framework choices, and IPC security.</p>
+      </div>
+
+      <table class="checkpoints-table">
+        <thead>
+          <tr>
+            <th style="width: 28%;">Decision Topic</th>
+            <th style="width: 47%;">Proposed Architectural Recommendation</th>
+            <th style="width: 25%;">Decision</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>1. Deprecate Wi-Fi SSID Tracking</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Eliminate CoreWLAN location prompt</div>
+            </td>
+            <td>
+              Remove <code>WiFiTracker.swift</code> and CoreWLAN framework. Curfew operates purely on calendar time (10:00 PM to 5:00 AM on weeknights), eliminating privacy-invasive Location Services prompts.
+            </td>
+            <td>
+              <div class="decision-btn-group" data-decision-id="wifi">
+                <button class="vote-btn" onclick="castVote(this, 'approve')">Approve</button>
+                <button class="vote-btn selected-defer" onclick="castVote(this, 'defer')">Defer</button>
+                <button class="vote-btn" onclick="castVote(this, 'reject')">Reject</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <strong>2. Deprecate Local TCP Server (Port 48200)</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Eliminate local open socket & CORS</div>
+            </td>
+            <td>
+              Remove <code>LocalBridgeServer.swift</code>. YouTube distraction blocking is handled natively by the Safari userscript; removing the HTTP server eliminates a localhost attack vector and background network listening.
+            </td>
+            <td>
+              <div class="decision-btn-group" data-decision-id="http">
+                <button class="vote-btn" onclick="castVote(this, 'approve')">Approve</button>
+                <button class="vote-btn selected-defer" onclick="castVote(this, 'defer')">Defer</button>
+                <button class="vote-btn" onclick="castVote(this, 'reject')">Reject</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <strong>3. Replace AppleScript with Native EventKit</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Type-safe reminders creation</div>
+            </td>
+            <td>
+              Migrate <code>RemindersBridge.swift</code> from executing raw AppleScript to Apple's native <code>EventKit</code> framework. Eliminates AppleScript parsing bugs and uses official macOS calendar/reminder permissions.
+            </td>
+            <td>
+              <div class="decision-btn-group" data-decision-id="eventkit">
+                <button class="vote-btn selected-approve" onclick="castVote(this, 'approve')">Approve</button>
+                <button class="vote-btn" onclick="castVote(this, 'defer')">Defer</button>
+                <button class="vote-btn" onclick="castVote(this, 'reject')">Reject</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <strong>4. Modular Swift Package Structure</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">CurfewCore + CurfewApp targets</div>
+            </td>
+            <td>
+              Refactor <code>Package.swift</code> into a library target <code>CurfewCore</code> (arbitration, storage, window controllers) and an executable target <code>CurfewApp</code>. Enables standard <code>swift test</code> automated unit test suites.
+            </td>
+            <td>
+              <div class="decision-btn-group" data-decision-id="modular">
+                <button class="vote-btn selected-approve" onclick="castVote(this, 'approve')">Approve</button>
+                <button class="vote-btn" onclick="castVote(this, 'defer')">Defer</button>
+                <button class="vote-btn" onclick="castVote(this, 'reject')">Reject</button>
+              </div>
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <strong>5. Retain Carbon Global Hotkeys</strong>
+              <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Cmd+Shift+Esc developer safeguard</div>
+            </td>
+            <td>
+              Keep <code>SafetyBypassManager</code> permanently integrated in all debug and release builds to ensure developers and users can never be trapped by an unexpected overlay freeze.
+            </td>
+            <td>
+              <div class="decision-btn-group" data-decision-id="carbon">
+                <button class="vote-btn selected-approve" onclick="castVote(this, 'approve')">Approve</button>
+                <button class="vote-btn" onclick="castVote(this, 'defer')">Defer</button>
+                <button class="vote-btn" onclick="castVote(this, 'reject')">Reject</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
+
+  <!-- INTERACTIVE SCRIPT -->
+  <script>
+    // Tab Switching Logic
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.section-content').forEach(sec => sec.classList.remove('active'));
+
+      event.target.classList.add('active');
+      const targetSec = document.getElementById(tabId);
+      if (targetSec) targetSec.classList.add('active');
+    }
+
+    // Filter Findings
+    function filterFindings(category) {
+      document.querySelectorAll('.filter-pill').forEach(pill => pill.classList.remove('active'));
+      event.target.classList.add('active');
+
+      const cards = document.querySelectorAll('.finding-card');
+      cards.forEach(card => {
+        if (category === 'all' || card.getAttribute('data-category') === category) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // Search Findings
+    function searchFindings() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const cards = document.querySelectorAll('.finding-card');
+
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase();
+        if (text.includes(query)) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    // Interactive Decision Checkpoint Voting
+    function castVote(button, voteType) {
+      const group = button.closest('.decision-btn-group');
+      group.querySelectorAll('.vote-btn').forEach(btn => {
+        btn.classList.remove('selected-approve', 'selected-defer', 'selected-reject');
+      });
+
+      if (voteType === 'approve') button.classList.add('selected-approve');
+      if (voteType === 'defer') button.classList.add('selected-defer');
+      if (voteType === 'reject') button.classList.add('selected-reject');
+
+      // Persist to localStorage
+      const decisionId = group.getAttribute('data-decision-id');
+      if (decisionId) {
+        localStorage.setItem('curfew_decision_' + decisionId, voteType);
+      }
+    }
+
+    // Dry Run Mockup Simulation Actions
+    function simulateDryRunAction(action) {
+      const feedback = document.getElementById('mockupActionFeedback');
+      if (!feedback) return;
+      if (action === 'sleep') {
+        feedback.innerHTML = '<span style="color:#fbbf24; font-weight:700;">⚡ Test Mode Alert:</span> Prompts "Would you like to put your Mac to sleep now to test it?" &mdash; avoiding accidental sleep during work!';
+      } else if (action === 'request') {
+        feedback.innerHTML = '<span style="color:#34d399; font-weight:700;">📝 Task Request Activated:</span> Tests natural language agency intent evaluation & EventKit Reminders export.';
+      } else if (action === 'emergency') {
+        feedback.innerHTML = '<span style="color:#f87171; font-weight:700;">🚨 Emergency Override:</span> Opens reason input field, prepares SMS alert, and disengages lock.';
+      } else if (action === 'exit') {
+        feedback.innerHTML = '<span style="color:#60a5fa; font-weight:700;">🔓 Safely Exited:</span> Test mode disengaged cleanly via Exit button, Esc, or Cmd+Shift+Esc.';
+      }
+    }
+
+    // Restore saved votes on load
+    document.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.decision-btn-group').forEach(group => {
+        const decisionId = group.getAttribute('data-decision-id');
+        if (decisionId) {
+          const saved = localStorage.getItem('curfew_decision_' + decisionId);
+          if (saved) {
+            group.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected-approve', 'selected-defer', 'selected-reject'));
+            const btn = group.querySelector(`.vote-btn[onclick*="${saved}"]`);
+            if (btn) btn.classList.add('selected-' + saved);
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

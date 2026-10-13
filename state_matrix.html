@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Curfew Mac — System State & Copy Matrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --card-bg: rgba(18, 26, 44, 0.85);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --blue: #3b82f6;
+      --red: #ef4444;
+      --purple: #a855f7;
+      --green: #10b981;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      padding: 40px 24px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 36px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    p.subtitle {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 20px;
+      margin-bottom: 36px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+    }
+
+    .card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    .badge-blue {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-red {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .badge-green {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    td code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .modal-preview {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+
+    .modal-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .modal-body {
+      font-size: 13px;
+      color: #cbd5e1;
+      white-space: pre-line;
+    }
+
+    /* Interactive Simulator */
+    .sim-box {
+      background: #131d31;
+      border: 1px solid #2563eb;
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 36px;
+    }
+
+    .sim-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 16px;
+    }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    textarea,
+    select,
+    input {
+      width: 100%;
+      background: #0b0f19;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+
+    textarea {
+      height: 80px;
+      resize: vertical;
+    }
+
+    button.btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+
+    button.btn:hover {
+      background: #1d4ed8;
+    }
+
+    .sim-result {
+      background: #0b0f19;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <header>
+      <h1>Curfew System State & Copy Matrix</h1>
+      <p class="subtitle">Complete categorical inventory of all system states, triggers, dialogs, and exit conditions.
+      </p>
+    </header>
+
+    <div class="card" style="margin-bottom: 24px;">
+      <h2>1. Master System States & Exit Conditions</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>State</th>
+            <th>Top Bar</th>
+            <th>Dropdown Status Line</th>
+            <th>Visible Action Buttons</th>
+            <th>Persistent UI Widget</th>
+            <th>Exit Conditions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Unrestricted Daytime</strong></td>
+            <td><code>SST</code></td>
+            <td><span style="color: #94a3b8;">Unrestricted • Curfew at 10:00 PM</span></td>
+            <td><em>(None)</em></td>
+            <td><em>(Hidden)</em></td>
+            <td>Clock reaches 10:00 PM &rarr; <strong>Bedtime Curfew (Locks screen)</strong></td>
+          </tr>
+          <tr>
+            <td><strong>2. Bedtime Curfew</strong></td>
+            <td><code>Curfew</code></td>
+            <td><strong style="color: #ef4444;">Bedtime Curfew Active (Until 5:00 AM)</strong></td>
+            <td><code>Request Late-Night Task...</code><br><code>Emergency Override</code></td>
+            <td><strong>Full-Screen Lock Card</strong><br><code>[Sleep Mac] [Request Task] [Emergency]</code></td>
+            <td>
+              &bull; Clock reaches 5:00 AM &rarr; <strong>Unrestricted Daytime</strong><br>
+              &bull; Request Task Approved &rarr; <strong>Granted Task Window</strong><br>
+              &bull; Emergency Override Triggered &rarr; <strong>Emergency Override</strong>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>3. Granted Task Window</strong></td>
+            <td><code>14:32</code></td>
+            <td><strong style="color: #3b82f6;">Active Task: "Send Audio to Joe" (14:32 left)</strong></td>
+            <td><code>Task Complete (Lock Screen)</code></td>
+            <td><strong style="color: #60a5fa;">Floating Moveable Top
+                Pill</strong><br><code>14:32 "Task Name" [Task Complete]</code></td>
+            <td>
+              &bull; Timer reaches 00:00 &rarr; <strong>Bedtime Curfew (Re-locks screen)</strong><br>
+              &bull; Click "Task Complete" &rarr; <strong>Bedtime Curfew (Re-locks screen)</strong><br>
+              &bull; Clock reaches 5:00 AM &rarr; <strong>Unrestricted Daytime</strong>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>4. Emergency Override</strong></td>
+            <td><code>Emergency</code></td>
+            <td><strong style="color: #ef4444;">Emergency Override Active</strong></td>
+            <td><code>Resolve Emergency (Lock Screen)</code></td>
+            <td><strong style="color: #f87171;">Floating Red Top
+                Pill</strong><br><code>EMERGENCY "Reason" [Resolve Emergency]</code></td>
+            <td>
+              &bull; Click "Resolve Emergency" (during curfew 10PM-5AM or Test) &rarr; <strong>Bedtime Curfew (Re-locks
+                screen)</strong><br>
+              &bull; Click "Resolve Emergency" (past 5:00 AM) &rarr; <strong>Unrestricted Daytime</strong><br>
+              &bull; Clock reaches 5:00 AM &rarr; <strong>Unrestricted Daytime</strong>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>5. Weekend Mode</strong></td>
+            <td><code>SST</code></td>
+            <td><span style="color: #94a3b8;">Weekend Mode (Unrestricted)</span></td>
+            <td><em>(None)</em></td>
+            <td><em>(Hidden)</em></td>
+            <td>Monday 5:00 AM &rarr; <strong>Unrestricted Daytime</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>2. In-Card Dialog & Copy Inventory</h2>
+
+        <div class="modal-preview">
+          <div class="badge badge-green" style="margin-bottom: 6px;">Approved Task Window</div>
+          <div class="modal-title">Approved: 15m window</div>
+          <div class="modal-body">Granted until late night. Starts countdown HUD pill.</div>
+        </div>
+
+        <div class="modal-preview" style="margin-top: 12px;">
+          <div class="badge badge-red" style="margin-bottom: 6px;">Smart No (Denial) In-Card View</div>
+          <div class="modal-title">Request Denied</div>
+          <div class="modal-body">7d sleep debt is 5.9h (&lt; 8.0h target). Created follow-up in Reminders for tomorrow
+            6:00 PM.</div>
+          <div style="margin-top: 8px; font-size: 11px; color: #94a3b8;">Buttons: [Open in Apple Reminders] &nbsp;
+            [Return to Curfew]</div>
+        </div>
+
+        <div class="modal-preview" style="margin-top: 12px;">
+          <div class="badge badge-red" style="margin-bottom: 6px;">Emergency In-Card Form</div>
+          <div class="modal-title">Accountability Alert</div>
+          <div class="modal-body">Dispatches SMS to configured contact with reason.\nButtons: [Send Alert &amp; Unlock]
+            &nbsp; [Cancel]</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>3. External Side Effects Matrix</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Target Service</th>
+              <th>Action Dispatched</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Emergency Override Triggered</strong></td>
+              <td>macOS Messages.app</td>
+              <td>Dispatches SMS to
+                <code>Config.girlfriendContact</code>:<br><code>[Emergency Alert] User triggered Screen Time Override at [Time]. Reason: "[Reason]".</code>
+              </td>
+            </tr>
+            <tr>
+              <td><strong>Resolve Emergency Clicked</strong></td>
+              <td>Local Daemon</td>
+              <td>Hides Emergency HUD, immediately engages curfew lock screen if within curfew window.</td>
+            </tr>
+            <tr>
+              <td><strong>"Smart No" Arbitrated</strong></td>
+              <td>Apple Reminders (iCloud)</td>
+              <td>Creates priority reminder with parsed action title, context notes, and due date set to
+                <strong>Tomorrow 6:00 PM</strong>.</td>
+            </tr>
+            <tr>
+              <td><strong>Granted Window Active</strong></td>
+              <td>Floating HUD + Audio Engine</td>
+              <td>Displays floating persistent moveable pill over full-screen apps + plays soft chime every 60s.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Interactive Rule Arbitrator Simulator -->
+    <div class="sim-box">
+      <h2>Interactive Intent & Sleep Debt Simulator</h2>
+      <p class="subtitle" style="margin-top: 4px;">Test how any input request evaluates against live sleep debt math in
+        real time.</p>
+
+      <div class="sim-grid">
+        <div>
+          <label>Spoken / Typed Intent Request:</label>
+          <textarea
+            id="simText">I am going to go to bed [X] minutes past my bedtime so that I can [Action]. If I don't do this now, [Impact], and doing it now will [Value].</textarea>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+            <div>
+              <label>Current Time:</label>
+              <select id="simTime">
+                <option value="0">10:00 PM (Curfew Start)</option>
+                <option value="30">10:30 PM (+30m)</option>
+                <option value="90" selected>11:30 PM (+90m)</option>
+                <option value="150">12:30 AM (+150m)</option>
+              </select>
+            </div>
+            <div>
+              <label>7-Day Cumulative Sleep Debt:</label>
+              <select id="simDebt">
+                <option value="1.0">1.0h (Well Rested)</option>
+                <option value="3.5">3.5h (Moderate Debt)</option>
+                <option value="5.9" selected>5.9h (Current Actual Debt)</option>
+                <option value="8.0">8.0h (Severe Deficit)</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn" onclick="runSimulation()">Evaluate Request</button>
+        </div>
+
+        <div>
+          <label>Evaluation Output & Categorical Copy:</label>
+          <div class="sim-result" id="simOutput">
+            Click "Evaluate Request" to run arbitration simulation...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function runSimulation() {
+      const text = document.getElementById('simText').value;
+      const timeOffset = parseInt(document.getElementById('simTime').value);
+      const debt = parseFloat(document.getElementById('simDebt').value);
+
+      const textLower = text.toLowerCase();
+
+      let urgency = 3.0;
+      const highKeywords = ["deadline", "client", "emergency", "release", "mix", "send", "joe", "handoff", "upload", "broken", "fix", "deploy", "server", "bounce", "master", "deliver"];
+      const lowKeywords = ["look at", "explore", "learn", "browse", "tweak", "scroll", "watch", "read", "organize", "research", "youtube", "check"];
+
+      for (let kw of highKeywords) { if (textLower.includes(kw)) urgency += 1.0; }
+      for (let kw of lowKeywords) { if (textLower.includes(kw)) urgency -= 1.0; }
+      urgency = Math.max(1.0, Math.min(5.0, urgency));
+
+      let score = (urgency * 20.0) - (timeOffset * 0.4) - (debt * 4.0);
+      const isApproved = score >= 45.0;
+
+      let minutes = 15;
+      const match = text.match(/(\d+)\s*(?:minutes|mins|min)/i);
+      if (match) minutes = Math.min(parseInt(match[1]), 15);
+
+      let outputHtml = `<strong>DECISION: ${isApproved ? '<span style="color:#34d399;">APPROVED</span>' : '<span style="color:#f87171;">DENIED (SMART NO)</span>'}</strong><br>`;
+      outputHtml += `Net Score: ${score.toFixed(1)} / 100 (Threshold: 45.0)<br>`;
+      outputHtml += `Urgency Grade: ${urgency}/5 | Curfew Offset: +${timeOffset}m | 7d Debt: ${debt}h<br><br>`;
+
+      if (isApproved) {
+        outputHtml += `<strong>Generated Dialog Title:</strong> Approved: ${minutes}m window<br>`;
+        outputHtml += `<strong>Generated Dialog Body:</strong> Granted until late night.<br>`;
+        outputHtml += `<strong>Side Effect:</strong> Shows Moveable Floating HUD Pill & starts 60s chime.`;
+      } else {
+        outputHtml += `<strong>Generated Dialog Title:</strong> Request Denied<br>`;
+        outputHtml += `<strong>Generated Dialog Body:</strong> 7d sleep debt is ${debt}h (&lt; 8.0h target). Created follow-up in Reminders for tomorrow 6:00 PM.<br>`;
+        outputHtml += `<strong>Actions:</strong> [Open in Apple Reminders] &nbsp; [Return to Curfew]`;
+      }
+
+      document.getElementById('simOutput').innerHTML = outputHtml;
+    }
+  </script>
+</body>
+
+</html>
