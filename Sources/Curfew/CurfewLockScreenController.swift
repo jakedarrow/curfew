@@ -785,7 +785,10 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         pillContainer.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
         pillContainer.layer?.borderWidth = 1.0
         
-        let sleepPill = NSTextField(labelWithString: "Last Night: \(sleep.lastNightHours)h  •  7-Day Cumulative Debt: \(sleep.cumulativeSleepDebtHours)h")
+        let pillText = sleep.isStale
+            ? "HealthKit Inactive (\(sleep.daysSinceLastSync)d ago)  •  Baseline Recovery: \(Config.targetSleepHours)h"
+            : "Last Night: \(sleep.lastNightHours)h  •  7-Day Debt: \(sleep.cumulativeSleepDebtHours)h"
+        let sleepPill = NSTextField(labelWithString: pillText)
         sleepPill.frame = NSRect(x: 10, y: 6, width: pillContainer.frame.width - 20, height: 20)
         sleepPill.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
         sleepPill.textColor = NSColor(calibratedRed: 0.65, green: 0.82, blue: 1.0, alpha: 1.0)
@@ -919,10 +922,16 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         let hour = Calendar.current.component(.hour, from: Date())
         let minute = Calendar.current.component(.minute, from: Date())
         var minsPast = 0
-        if hour >= 22 { minsPast = (hour - 22) * 60 + minute }
-        else if hour < 5 { minsPast = (hour + 2) * 60 + minute }
+        if hour >= Config.weeknightBedtimeStartHour {
+            minsPast = (hour - Config.weeknightBedtimeStartHour) * 60 + minute
+        } else if hour < Config.weeknightBedtimeEndHour {
+            minsPast = (hour + (24 - Config.weeknightBedtimeStartHour)) * 60 + minute
+        }
         
-        let foot = NSTextField(labelWithString: "Sleep Debt: \(sleep.cumulativeSleepDebtHours)h  •  Last Night: \(sleep.lastNightHours)h  •  Curfew: +\(minsPast)m")
+        let footText = sleep.isStale
+            ? "HealthKit Inactive (\(sleep.daysSinceLastSync)d ago)  •  Baseline: \(Config.targetSleepHours)h  •  Curfew: +\(minsPast)m"
+            : "Sleep Debt: \(sleep.cumulativeSleepDebtHours)h  •  Last Night: \(sleep.lastNightHours)h  •  Curfew: +\(minsPast)m"
+        let foot = NSTextField(labelWithString: footText)
         foot.frame = NSRect(x: 40, y: height - 396, width: fieldWidth, height: 20)
         foot.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         foot.textColor = NSColor(calibratedRed: 0.65, green: 0.82, blue: 1.0, alpha: 0.85)
@@ -1407,24 +1416,13 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         reasonLabel.alignment = .center
         card.addSubview(reasonLabel)
         
-        let btnWidth = (width - 96) / 2
-        let remindersBtn = KeyboardNavigableButton(title: "Open Apple Reminders", target: self, action: #selector(handleOpenRemindersClicked))
-        remindersBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
-        Self.stylePrimaryButton(remindersBtn, title: "Open Apple Reminders")
-        card.addSubview(remindersBtn)
+        let dismissBtn = KeyboardNavigableButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+        dismissBtn.frame = NSRect(x: (width - 240) / 2, y: 34, width: 240, height: 48)
+        Self.stylePrimaryButton(dismissBtn, title: "Return to Curfew (Esc)")
+        card.addSubview(dismissBtn)
         
-        let backBtn = KeyboardNavigableButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-        backBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
-        Self.styleSecondaryButton(backBtn, title: "Return to Curfew (Esc)")
-        card.addSubview(backBtn)
-        
-        remindersBtn.previousKeyTarget = backBtn
-        remindersBtn.nextKeyTarget = backBtn
-        backBtn.previousKeyTarget = remindersBtn
-        backBtn.nextKeyTarget = remindersBtn
-        
-        DispatchQueue.main.async { [weak remindersBtn] in
-            remindersBtn?.window?.makeFirstResponder(remindersBtn)
+        DispatchQueue.main.async { [weak dismissBtn] in
+            dismissBtn?.window?.makeFirstResponder(dismissBtn)
         }
     }
     

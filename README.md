@@ -16,12 +16,15 @@ Curfew eliminates late-night doomscrolling and midnight rabbit holes by locking 
 ### What it does
 
 * **Enforced Bedtime Lock:** When your curfew window starts (default 10:00 PM), Curfew renders a full-screen, system-level lock screen with progressive warning pulses (15 min, 5 min, 1 min) before engagement.
-* **AI Task Arbitrator:** Need to request a late-night extension? Curfew queries a local LLM via [Ollama](https://ollama.ai) (`llama3.1:8b`) to rigorously evaluate whether your task is a true emergency or dopamine-seeking rationalization.
-* **Two-Round Scope Negotiation:** If your request is potentially valid, the arbitrator negotiates a tightly scoped, minimal sub-task and grants a bounded time window (e.g. 15–30 minutes).
-* **"Smart No" with Apple Reminders Deferral:** If your request is rejected, Curfew captures the task title, context, and estimated duration, then automatically creates a priority task in **Apple Reminders** due tomorrow at 6:00 PM—clearing your head so you can sleep.
-* **Floating Countdown HUD:** During an approved extension window, a non-intrusive floating pill hovers over full-screen apps displaying your remaining minutes, accompanied by gentle ambient audio chimes.
+* **Smart AI Task Arbitrator:** Need to request a late-night extension? Curfew queries a local LLM via [Ollama](https://ollama.ai) (`llama3.1:8b`) with Chain-of-Thought reasoning to evaluate deliverable clarity, urgency, and bedtime procrastination.
+* **Persistent Multi-Turn Session Memory:** Retains tonight's requests, counter-offers, and concessions in `~/.config/curfew/session_ledger.json` like a continuous conversation. The agent remembers all previous interactions throughout the night and prevents badgering naturally without artificial state machines.
+* **Static GPU Prefix Caching:** Uses a 100% static system prompt allowing Ollama to reuse GPU KV attention caches across requests, dropping prompt evaluation times to <80ms.
+* **Calendar & Biological Sleep Awareness:** Queries tomorrow morning's schedule via native EventKit (checking wake-up constraints before 1:00 PM) and validates HealthKit sync freshness (36h gate) so stale metrics never distort sleep debt.
+* **Two-Round Scope Negotiation:** If your request is potentially valid, the arbitrator negotiates a tightly scoped, minimal sub-task and grants a bounded time window (e.g. 10–20 minutes).
+* **Seamless Apple Reminders Deferral:** When a request is declined, click **Save Reminder (6 PM)** to immediately schedule a high-priority task in Apple Reminders for tomorrow at 6:00 PM—clearing your head so you can sleep.
+* **Floating Scope HUD:** During an approved extension window, a non-intrusive floating pill hovers over full-screen apps displaying your countdown timer alongside the agreed task deliverable (`[14:22] • Task Scope`), accompanied by gentle ambient audio chimes.
+* **Keyboard-First Glassmorphic Interface:** Complete mouse-free navigation (`Tab` / `Shift+Tab` / arrow keys / `1-4` / `Return` / `Esc`) with custom in-shape glowing focus halos and 24px continuous rounded corners.
 * **Social Accountability Lifeline:** Bypassing curfew in a true emergency requires entering a reason, which dispatches an automated alert SMS/iMessage to your designated accountability partner.
-* **Network & Context Awareness:** Detects your active Wi-Fi profile (Work Focus, Home Creative, Partner Sanctuary) and local HealthKit sleep trends to dynamically calibrate enforcement strictness.
 * **Interactive Dry Run / Test Mode:** Full-featured developer test mode (`--test-mode`) with configurable or untimed auto-dismiss options, allowing you to test lock screen interactions and task negotiations safely during the day.
 * **100% Local & Private:** Built with native Swift and AppKit. All AI inference runs locally on your Mac; personal preferences and contacts live securely in `~/.config/curfew/config.json`.
 
