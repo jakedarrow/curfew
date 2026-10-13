@@ -64,6 +64,89 @@ public final class KeyableLockWindow: NSWindow {
     }
 }
 
+// MARK: - Keyboard Navigable Controls
+public final class KeyboardNavigableSegmentedControl: NSSegmentedControl {
+    public weak var previousKeyTarget: NSResponder?
+    public weak var nextKeyTarget: NSResponder?
+    public var onReturnPressed: (() -> Void)?
+    
+    public override var acceptsFirstResponder: Bool { true }
+    public override var canBecomeKeyView: Bool { true }
+    
+    public override func keyDown(with event: NSEvent) {
+        if event.keyCode == 48 { // Tab
+            if event.modifierFlags.contains(.shift) {
+                if let prev = previousKeyTarget, let win = window {
+                    win.makeFirstResponder(prev)
+                    return
+                }
+            } else {
+                if let next = nextKeyTarget, let win = window {
+                    win.makeFirstResponder(next)
+                    return
+                }
+            }
+        } else if event.keyCode == 123 || event.keyCode == 126 { // Left or Up Arrow
+            selectedSegment = max(0, selectedSegment - 1)
+            sendAction(action, to: target)
+            return
+        } else if event.keyCode == 124 || event.keyCode == 125 { // Right or Down Arrow
+            selectedSegment = min(segmentCount - 1, selectedSegment + 1)
+            sendAction(action, to: target)
+            return
+        } else if let chars = event.characters, chars == "1" {
+            if segmentCount > 0 { selectedSegment = 0; sendAction(action, to: target) }
+            return
+        } else if let chars = event.characters, chars == "2" {
+            if segmentCount > 1 { selectedSegment = 1; sendAction(action, to: target) }
+            return
+        } else if let chars = event.characters, chars == "3" {
+            if segmentCount > 2 { selectedSegment = 2; sendAction(action, to: target) }
+            return
+        } else if let chars = event.characters, chars == "4" {
+            if segmentCount > 3 { selectedSegment = 3; sendAction(action, to: target) }
+            return
+        } else if event.keyCode == 36 { // Return
+            onReturnPressed?()
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
+public final class KeyboardNavigableButton: NSButton {
+    public weak var previousKeyTarget: NSResponder?
+    public weak var nextKeyTarget: NSResponder?
+    public var customAction: (() -> Void)?
+    
+    public override var acceptsFirstResponder: Bool { true }
+    public override var canBecomeKeyView: Bool { true }
+    
+    public override func keyDown(with event: NSEvent) {
+        if event.keyCode == 48 { // Tab
+            if event.modifierFlags.contains(.shift) {
+                if let prev = previousKeyTarget, let win = window {
+                    win.makeFirstResponder(prev)
+                    return
+                }
+            } else {
+                if let next = nextKeyTarget, let win = window {
+                    win.makeFirstResponder(next)
+                    return
+                }
+            }
+        } else if event.keyCode == 36 || event.keyCode == 49 { // Return or Space
+            if let custom = customAction {
+                custom()
+            } else if let target = target, let action = action {
+                NSApp.sendAction(action, to: target, from: self)
+            }
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
 // MARK: - Curfew Lock Screen Controller
 @MainActor
 public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
@@ -96,12 +179,13 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     // Form Inputs & Buttons (Weak references to currently active card views)
     private weak var taskField: NSTextField?
     private weak var consequenceField: NSTextField?
-    private weak var minutesSegmentedControl: NSSegmentedControl?
+    private weak var minutesSegmentedControl: KeyboardNavigableSegmentedControl?
     private weak var concessionField: NSTextField?
     private weak var emergencyReasonField: NSTextField?
-    private weak var submitProposalButton: NSButton?
-    private weak var submitConcessionButton: NSButton?
-    private weak var submitEmergencyButton: NSButton?
+    private weak var submitProposalButton: KeyboardNavigableButton?
+    private weak var cancelProposalButton: KeyboardNavigableButton?
+    private weak var submitConcessionButton: KeyboardNavigableButton?
+    private weak var submitEmergencyButton: KeyboardNavigableButton?
     
     // Test Mode Auto-Dismiss Timer (runs on RunLoop .common mode; nil = untimed)
     private var testModeTimer: Timer?
@@ -112,6 +196,92 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     public var onRequestApproved: ((_ result: ArbitrationResult) -> Void)?
     public var onEmergencyApproved: ((_ reason: String) -> Void)?
     public var onExitTestModeRequested: (() -> Void)?
+    
+    // MARK: - Glassmorphic Aesthetic Styling Helpers
+    public static func styleCard(_ card: NSView) {
+        card.wantsLayer = true
+        card.layer?.backgroundColor = NSColor(calibratedRed: 0.08, green: 0.10, blue: 0.16, alpha: 0.98).cgColor
+        card.layer?.cornerRadius = 24
+        card.layer?.cornerCurve = .continuous
+        card.layer?.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
+        card.layer?.borderWidth = 1.5
+        card.layer?.shadowColor = NSColor.black.cgColor
+        card.layer?.shadowOpacity = 0.65
+        card.layer?.shadowRadius = 36
+    }
+    
+    public static func styleInputField(_ field: NSTextField) {
+        field.wantsLayer = true
+        field.layer?.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.12, alpha: 0.95).cgColor
+        field.layer?.cornerRadius = 10
+        field.layer?.cornerCurve = .continuous
+        field.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor
+        field.layer?.borderWidth = 1.2
+        field.textColor = .white
+        field.isBezeled = false
+        field.drawsBackground = false
+        field.focusRingType = .none
+    }
+    
+    public static func stylePrimaryButton(_ button: NSButton, title: String? = nil) {
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor(calibratedRed: 0.18, green: 0.28, blue: 0.52, alpha: 0.50).cgColor
+        button.layer?.cornerRadius = 12
+        button.layer?.cornerCurve = .continuous
+        button.layer?.borderColor = NSColor.systemTeal.withAlphaComponent(0.65).cgColor
+        button.layer?.borderWidth = 1.5
+        button.isBordered = false
+        
+        let t = title ?? button.title
+        let pStyle = NSMutableParagraphStyle()
+        pStyle.alignment = .center
+        let attr = NSAttributedString(string: t, attributes: [
+            .foregroundColor: NSColor.white,
+            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+            .paragraphStyle: pStyle
+        ])
+        button.attributedTitle = attr
+    }
+    
+    public static func styleSecondaryButton(_ button: NSButton, title: String? = nil) {
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
+        button.layer?.cornerRadius = 12
+        button.layer?.cornerCurve = .continuous
+        button.layer?.borderColor = NSColor.white.withAlphaComponent(0.20).cgColor
+        button.layer?.borderWidth = 1.0
+        button.isBordered = false
+        
+        let t = title ?? button.title
+        let pStyle = NSMutableParagraphStyle()
+        pStyle.alignment = .center
+        let attr = NSAttributedString(string: t, attributes: [
+            .foregroundColor: NSColor(calibratedWhite: 0.88, alpha: 1.0),
+            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+            .paragraphStyle: pStyle
+        ])
+        button.attributedTitle = attr
+    }
+    
+    public static func styleEmergencyButton(_ button: NSButton, title: String? = nil) {
+        button.wantsLayer = true
+        button.layer?.backgroundColor = NSColor(calibratedRed: 0.85, green: 0.15, blue: 0.22, alpha: 0.18).cgColor
+        button.layer?.cornerRadius = 12
+        button.layer?.cornerCurve = .continuous
+        button.layer?.borderColor = NSColor.systemRed.withAlphaComponent(0.70).cgColor
+        button.layer?.borderWidth = 1.5
+        button.isBordered = false
+        
+        let t = title ?? button.title
+        let pStyle = NSMutableParagraphStyle()
+        pStyle.alignment = .center
+        let attr = NSAttributedString(string: t, attributes: [
+            .foregroundColor: NSColor.systemRed,
+            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
+            .paragraphStyle: pStyle
+        ])
+        button.attributedTitle = attr
+    }
     
     private override init() {
         super.init()
@@ -141,11 +311,13 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         isPreviewMode = true
         self.currentCardState = .overview
         
-        let cardWidth: CGFloat = 540
-        let cardHeight: CGFloat = 460
+        let cardWidth: CGFloat = 580
+        let cardHeight: CGFloat = 510
+        let winWidth: CGFloat = 660
+        let winHeight: CGFloat = 590
         
         let win = KeyableLockWindow(
-            contentRect: NSRect(x: 0, y: 0, width: cardWidth, height: cardHeight),
+            contentRect: NSRect(x: 0, y: 0, width: winWidth, height: winHeight),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -154,6 +326,7 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         win.title = "Curfew Preview (Zero-Risk Safe Sandbox)"
         win.center()
         win.isReleasedWhenClosed = false
+        win.backgroundColor = NSColor(calibratedRed: 0.04, green: 0.05, blue: 0.08, alpha: 1.0)
         
         win.onEscapePressed = { [weak self] in
             guard let self = self else { return }
@@ -164,11 +337,13 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
             NSApplication.shared.terminate(nil)
         }
         
-        let card = NSView(frame: win.contentView!.bounds)
-        card.autoresizingMask = [.width, .height]
-        card.wantsLayer = true
-        card.layer?.backgroundColor = NSColor(calibratedRed: 0.09, green: 0.12, blue: 0.18, alpha: 1.0).cgColor
-        win.contentView?.addSubview(card)
+        let container = NSView(frame: win.contentView!.bounds)
+        container.autoresizingMask = [.width, .height]
+        win.contentView?.addSubview(container)
+        
+        let card = NSView(frame: NSRect(x: (winWidth - cardWidth) / 2, y: (winHeight - cardHeight) / 2, width: cardWidth, height: cardHeight))
+        Self.styleCard(card)
+        container.addSubview(card)
         
         self.primaryCardView = card
         renderCurrentCardState()
@@ -356,20 +531,13 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         window.contentView?.addSubview(visualEffect)
         
         if isPrimary {
-            let cardWidth: CGFloat = 540
-            let cardHeight: CGFloat = 460
+            let cardWidth: CGFloat = 580
+            let cardHeight: CGFloat = 510
             let cardX = (frame.width - cardWidth) / 2
             let cardY = (frame.height - cardHeight) / 2
             
             let card = NSView(frame: NSRect(x: cardX, y: cardY, width: cardWidth, height: cardHeight))
-            card.wantsLayer = true
-            card.layer?.backgroundColor = NSColor(calibratedRed: 0.09, green: 0.12, blue: 0.18, alpha: 0.98).cgColor
-            card.layer?.cornerRadius = 18
-            card.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
-            card.layer?.borderWidth = 1.0
-            card.layer?.shadowColor = NSColor.black.cgColor
-            card.layer?.shadowOpacity = 0.6
-            card.layer?.shadowRadius = 32
+            Self.styleCard(card)
             visualEffect.addSubview(card)
             
             self.primaryCardView = card
@@ -377,11 +545,11 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
             
             // Test Mode Safety Banner
             if isTestMode {
-                let bannerWidth: CGFloat = 540
-                let banner = NSView(frame: NSRect(x: (frame.width - bannerWidth) / 2, y: cardY + cardHeight + 16, width: bannerWidth, height: 38))
+                let bannerWidth: CGFloat = 580
+                let banner = NSView(frame: NSRect(x: (frame.width - bannerWidth) / 2, y: cardY + cardHeight + 16, width: bannerWidth, height: 42))
                 banner.wantsLayer = true
                 banner.layer?.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.18).cgColor
-                banner.layer?.cornerRadius = 19
+                banner.layer?.cornerRadius = 21
                 banner.layer?.borderColor = NSColor.systemYellow.withAlphaComponent(0.6).cgColor
                 banner.layer?.borderWidth = 1.2
                 
@@ -393,14 +561,14 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
                 }
                 
                 let label = NSTextField(labelWithString: bannerText)
-                label.frame = NSRect(x: 16, y: 9, width: 400, height: 20)
+                label.frame = NSRect(x: 18, y: 11, width: 430, height: 20)
                 label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
                 label.textColor = NSColor.systemYellow
                 banner.addSubview(label)
                 self.testModeLabel = label
                 
-                let exitBtn = NSButton(title: "Exit Test", target: self, action: #selector(handleExitTestClicked))
-                exitBtn.frame = NSRect(x: 425, y: 5, width: 100, height: 28)
+                let exitBtn = KeyboardNavigableButton(title: "Exit Test", target: self, action: #selector(handleExitTestClicked))
+                exitBtn.frame = NSRect(x: 460, y: 7, width: 105, height: 28)
                 exitBtn.bezelStyle = .rounded
                 exitBtn.font = NSFont.systemFont(ofSize: 11, weight: .bold)
                 banner.addSubview(exitBtn)
@@ -482,7 +650,7 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         let badgeColor = isPreviewMode ? NSColor.systemTeal : (isTestMode ? NSColor.systemYellow : NSColor.systemOrange)
         
         let badge = NSTextField(labelWithString: badgeText)
-        badge.frame = NSRect(x: (width - 280) / 2, y: height - 48, width: 280, height: 18)
+        badge.frame = NSRect(x: (width - 320) / 2, y: height - 50, width: 320, height: 18)
         badge.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .heavy)
         badge.textColor = badgeColor
         badge.alignment = .center
@@ -490,96 +658,115 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         
         // Title
         let titleLabel = NSTextField(labelWithString: "Locked for Sleep Recovery")
-        titleLabel.frame = NSRect(x: 20, y: height - 92, width: width - 40, height: 32)
-        titleLabel.font = NSFont.systemFont(ofSize: 24, weight: .bold)
+        titleLabel.frame = NSRect(x: 20, y: height - 96, width: width - 40, height: 32)
+        titleLabel.font = NSFont.systemFont(ofSize: 25, weight: .bold)
         titleLabel.textColor = NSColor.white
         titleLabel.alignment = .center
         card.addSubview(titleLabel)
         
         // Subtitle
         let subLabel = NSTextField(labelWithString: "Screen time is locked until 5:00 AM. Work state remains saved in memory.")
-        subLabel.frame = NSRect(x: 30, y: height - 132, width: width - 60, height: 32)
+        subLabel.frame = NSRect(x: 30, y: height - 134, width: width - 60, height: 24)
         subLabel.font = NSFont.systemFont(ofSize: 13)
         subLabel.textColor = NSColor(calibratedWhite: 0.72, alpha: 1.0)
         subLabel.alignment = .center
         card.addSubview(subLabel)
         
-        // Sleep Context Pill
+        // Sleep Context Capsule Pill
+        let pillContainer = NSView(frame: NSRect(x: 40, y: height - 180, width: width - 80, height: 32))
+        pillContainer.wantsLayer = true
+        pillContainer.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.06).cgColor
+        pillContainer.layer?.cornerRadius = 16
+        pillContainer.layer?.cornerCurve = .continuous
+        pillContainer.layer?.borderColor = NSColor.white.withAlphaComponent(0.12).cgColor
+        pillContainer.layer?.borderWidth = 1.0
+        
         let sleepPill = NSTextField(labelWithString: "Last Night: \(sleep.lastNightHours)h  •  7-Day Cumulative Debt: \(sleep.cumulativeSleepDebtHours)h")
-        sleepPill.frame = NSRect(x: 30, y: height - 170, width: width - 60, height: 24)
+        sleepPill.frame = NSRect(x: 10, y: 6, width: pillContainer.frame.width - 20, height: 20)
         sleepPill.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
         sleepPill.textColor = NSColor(calibratedRed: 0.65, green: 0.82, blue: 1.0, alpha: 1.0)
         sleepPill.alignment = .center
-        card.addSubview(sleepPill)
+        pillContainer.addSubview(sleepPill)
+        card.addSubview(pillContainer)
         
         // Hero Primary Button: Sleep Mac (Return triggers sleep)
-        let sleepMacBtn = NSButton(title: "Sleep Mac (Return)", target: self, action: #selector(handleSleepMacClicked))
-        sleepMacBtn.frame = NSRect(x: 44, y: height - 256, width: width - 88, height: 54)
-        sleepMacBtn.bezelStyle = .rounded
-        sleepMacBtn.font = NSFont.systemFont(ofSize: 16, weight: .bold)
+        let sleepMacBtn = KeyboardNavigableButton(title: "Sleep Mac (Return)", target: self, action: #selector(handleSleepMacClicked))
+        sleepMacBtn.frame = NSRect(x: 40, y: height - 265, width: width - 80, height: 56)
+        Self.stylePrimaryButton(sleepMacBtn, title: "Sleep Mac (Return)")
         sleepMacBtn.keyEquivalent = "\r"
         card.addSubview(sleepMacBtn)
         
         // Secondary Action Buttons Row
-        let reqBtn = NSButton(title: "Request Late-Night Task", target: self, action: #selector(handleRequestClicked))
-        reqBtn.frame = NSRect(x: 44, y: height - 326, width: (width - 104) / 2, height: 44)
-        reqBtn.bezelStyle = .rounded
-        reqBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        let btnWidth = (width - 96) / 2
+        let reqBtn = KeyboardNavigableButton(title: "Request Late-Night Task", target: self, action: #selector(handleRequestClicked))
+        reqBtn.frame = NSRect(x: 40, y: height - 340, width: btnWidth, height: 48)
+        Self.styleSecondaryButton(reqBtn, title: "Request Late-Night Task")
         card.addSubview(reqBtn)
         
-        let emerBtn = NSButton(title: "Emergency Override", target: self, action: #selector(handleEmergencyClicked))
-        emerBtn.frame = NSRect(x: 60 + (width - 104) / 2, y: height - 326, width: (width - 104) / 2, height: 44)
-        emerBtn.bezelStyle = .rounded
-        emerBtn.font = NSFont.systemFont(ofSize: 13, weight: .semibold)
+        // Emergency Override Button (RED STYLING)
+        let emerBtn = KeyboardNavigableButton(title: "Emergency Override", target: self, action: #selector(handleEmergencyClicked))
+        emerBtn.frame = NSRect(x: 56 + btnWidth, y: height - 340, width: btnWidth, height: 48)
+        Self.styleEmergencyButton(emerBtn, title: "Emergency Override")
         card.addSubview(emerBtn)
+        
+        // Keyboard navigation loop for Overview
+        sleepMacBtn.previousKeyTarget = emerBtn
+        sleepMacBtn.nextKeyTarget = reqBtn
+        reqBtn.previousKeyTarget = sleepMacBtn
+        reqBtn.nextKeyTarget = emerBtn
+        emerBtn.previousKeyTarget = reqBtn
+        emerBtn.nextKeyTarget = sleepMacBtn
         
         // Footer Note
         let footnote = NSTextField(labelWithString: "Emergency override dispatches an accountability SMS alert.")
-        footnote.frame = NSRect(x: 20, y: 26, width: width - 40, height: 20)
+        footnote.frame = NSRect(x: 20, y: 28, width: width - 40, height: 20)
         footnote.font = NSFont.systemFont(ofSize: 11)
         footnote.textColor = NSColor(calibratedWhite: 0.45, alpha: 1.0)
         footnote.alignment = .center
         card.addSubview(footnote)
+        
+        DispatchQueue.main.async { [weak sleepMacBtn] in
+            guard let sm = sleepMacBtn, let win = sm.window else { return }
+            win.makeFirstResponder(sm)
+        }
     }
     
     // MARK: 2. Structured Guided Request Task View (3 Fields + Chips)
     private func renderRequestTaskView(in card: NSView, width: CGFloat, height: CGFloat, task: String, consequence: String, requestedMinutes: Int) {
         // Header Badge
         let badge = NSTextField(labelWithString: "LATE-NIGHT TASK ARBITRATION")
-        badge.frame = NSRect(x: (width - 300) / 2, y: height - 38, width: 300, height: 16)
+        badge.frame = NSRect(x: (width - 320) / 2, y: height - 42, width: 320, height: 16)
         badge.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy)
         badge.textColor = NSColor.systemTeal
         badge.alignment = .center
         card.addSubview(badge)
         
         let titleLabel = NSTextField(labelWithString: "Request Work Window")
-        titleLabel.frame = NSRect(x: 20, y: height - 68, width: width - 40, height: 26)
-        titleLabel.font = NSFont.systemFont(ofSize: 20, weight: .bold)
+        titleLabel.frame = NSRect(x: 20, y: height - 76, width: width - 40, height: 28)
+        titleLabel.font = NSFont.systemFont(ofSize: 22, weight: .bold)
         titleLabel.textColor = NSColor.white
         titleLabel.alignment = .center
         card.addSubview(titleLabel)
         
         let subLabel = NSTextField(labelWithString: "Curfew AI reasons over deliverable clarity, urgency, and sleep debt.")
-        subLabel.frame = NSRect(x: 30, y: height - 92, width: width - 60, height: 18)
+        subLabel.frame = NSRect(x: 30, y: height - 104, width: width - 60, height: 20)
         subLabel.font = NSFont.systemFont(ofSize: 12)
-        subLabel.textColor = NSColor(calibratedWhite: 0.7, alpha: 1.0)
+        subLabel.textColor = NSColor(calibratedWhite: 0.72, alpha: 1.0)
         subLabel.alignment = .center
         card.addSubview(subLabel)
         
+        let fieldWidth = width - 80
+        
         // Field 1: Task & Deliverable
         let label1 = NSTextField(labelWithString: "1. TASK & DELIVERABLE")
-        label1.frame = NSRect(x: 40, y: height - 128, width: width - 80, height: 16)
+        label1.frame = NSRect(x: 40, y: height - 142, width: fieldWidth, height: 16)
         label1.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .bold)
         label1.textColor = NSColor(calibratedWhite: 0.55, alpha: 1.0)
         card.addSubview(label1)
         
-        let tField = NSTextField(frame: NSRect(x: 40, y: height - 164, width: width - 80, height: 32))
+        let tField = NSTextField(frame: NSRect(x: 40, y: height - 182, width: fieldWidth, height: 38))
+        Self.styleInputField(tField)
         tField.font = NSFont.systemFont(ofSize: 13)
-        tField.textColor = NSColor.white
-        tField.isBezeled = true
-        tField.bezelStyle = .roundedBezel
-        tField.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.12, alpha: 1.0)
-        tField.focusRingType = .exterior
         tField.placeholderString = "e.g. Finish writing auth migration section 3"
         tField.stringValue = task
         tField.delegate = self
@@ -588,18 +775,14 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         
         // Field 2: Impact If Delayed
         let label2 = NSTextField(labelWithString: "2. IMPACT IF DELAYED")
-        label2.frame = NSRect(x: 40, y: height - 204, width: width - 80, height: 16)
+        label2.frame = NSRect(x: 40, y: height - 228, width: fieldWidth, height: 16)
         label2.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .bold)
         label2.textColor = NSColor(calibratedWhite: 0.55, alpha: 1.0)
         card.addSubview(label2)
         
-        let cField = NSTextField(frame: NSRect(x: 40, y: height - 240, width: width - 80, height: 32))
+        let cField = NSTextField(frame: NSRect(x: 40, y: height - 268, width: fieldWidth, height: 38))
+        Self.styleInputField(cField)
         cField.font = NSFont.systemFont(ofSize: 13)
-        cField.textColor = NSColor.white
-        cField.isBezeled = true
-        cField.bezelStyle = .roundedBezel
-        cField.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.12, alpha: 1.0)
-        cField.focusRingType = .exterior
         cField.placeholderString = "e.g. Blocks team morning deploy review at 9:00 AM"
         cField.stringValue = consequence
         cField.delegate = self
@@ -607,14 +790,14 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         self.consequenceField = cField
         
         // Field 3: Requested Duration (Segmented Chips: 5m, 10m, 15m, 20m)
-        let label3 = NSTextField(labelWithString: "3. REQUESTED TIME")
-        label3.frame = NSRect(x: 40, y: height - 280, width: width - 80, height: 16)
+        let label3 = NSTextField(labelWithString: "3. REQUESTED TIME (Use Arrow Keys or 1-4)")
+        label3.frame = NSRect(x: 40, y: height - 314, width: fieldWidth, height: 16)
         label3.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .bold)
         label3.textColor = NSColor(calibratedWhite: 0.55, alpha: 1.0)
         card.addSubview(label3)
         
-        let segControl = NSSegmentedControl(labels: ["5 mins", "10 mins", "15 mins", "20 mins"], trackingMode: .selectOne, target: nil, action: nil)
-        segControl.frame = NSRect(x: 40, y: height - 316, width: width - 80, height: 32)
+        let segControl = KeyboardNavigableSegmentedControl(labels: ["5 mins", "10 mins", "15 mins", "20 mins"], trackingMode: .selectOne, target: nil, action: nil)
+        segControl.frame = NSRect(x: 40, y: height - 354, width: fieldWidth, height: 36)
         segControl.segmentDistribution = .fillEqually
         let segIndex: Int
         switch requestedMinutes {
@@ -636,33 +819,40 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         else if hour < 5 { minsPast = (hour + 2) * 60 + minute }
         
         let foot = NSTextField(labelWithString: "Sleep Debt: \(sleep.cumulativeSleepDebtHours)h  •  Last Night: \(sleep.lastNightHours)h  •  Curfew: +\(minsPast)m")
-        foot.frame = NSRect(x: 40, y: height - 350, width: width - 80, height: 20)
+        foot.frame = NSRect(x: 40, y: height - 396, width: fieldWidth, height: 20)
         foot.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         foot.textColor = NSColor(calibratedRed: 0.65, green: 0.82, blue: 1.0, alpha: 0.85)
         foot.alignment = .center
         card.addSubview(foot)
         
         // Action Buttons Row
-        let submitBtn = NSButton(title: "Reason with Curfew AI (Return)", target: self, action: #selector(handleSubmitProposalClicked))
-        submitBtn.frame = NSRect(x: 40, y: 32, width: (width - 96) / 2, height: 44)
-        submitBtn.bezelStyle = .rounded
-        submitBtn.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        let btnWidth = (width - 96) / 2
+        let submitBtn = KeyboardNavigableButton(title: "Reason with Curfew AI (Return)", target: self, action: #selector(handleSubmitProposalClicked))
+        submitBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
+        Self.stylePrimaryButton(submitBtn, title: "Reason with Curfew AI (Return)")
         submitBtn.keyEquivalent = "\r"
         card.addSubview(submitBtn)
         self.submitProposalButton = submitBtn
         
-        let cancelBtn = NSButton(title: "Back (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-        cancelBtn.frame = NSRect(x: 56 + (width - 96) / 2, y: 32, width: (width - 96) / 2, height: 44)
-        cancelBtn.bezelStyle = .rounded
-        cancelBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        let cancelBtn = KeyboardNavigableButton(title: "Back (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+        cancelBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
+        Self.styleSecondaryButton(cancelBtn, title: "Back (Esc)")
         card.addSubview(cancelBtn)
+        self.cancelProposalButton = cancelBtn
         
-        // Tab key navigation chain
+        // Explicit Bidirectional Keyboard Navigation Loop:
+        // Field 1 <-> Field 2 <-> segControl <-> submitBtn <-> cancelBtn <-> Field 1
         tField.nextKeyView = cField
         cField.nextKeyView = segControl
-        segControl.nextKeyView = submitBtn
-        submitBtn.nextKeyView = cancelBtn
-        cancelBtn.nextKeyView = tField
+        segControl.previousKeyTarget = cField
+        segControl.nextKeyTarget = submitBtn
+        segControl.onReturnPressed = { [weak self] in
+            self?.handleSubmitProposalClicked()
+        }
+        submitBtn.previousKeyTarget = segControl
+        submitBtn.nextKeyTarget = cancelBtn
+        cancelBtn.previousKeyTarget = submitBtn
+        cancelBtn.nextKeyTarget = tField
         
         // Auto-focus first field
         DispatchQueue.main.async { [weak tField] in
@@ -898,73 +1088,104 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         card.addSubview(box)
         
         // Action Buttons
+        let btnWidth = (width - 96) / 2
+        let triBtnWidth = (width - 104) / 3
         if isApproved {
-            let acceptBtn = NSButton(title: "Accept & Start (\(result.grantedMinutes)m)", target: self, action: #selector(handleAcceptAIDecisionClicked))
-            acceptBtn.bezelStyle = .rounded
-            acceptBtn.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+            let acceptBtn = KeyboardNavigableButton(title: "Accept & Start (\(result.grantedMinutes)m)", target: self, action: #selector(handleAcceptAIDecisionClicked))
+            Self.stylePrimaryButton(acceptBtn, title: "Accept & Start (\(result.grantedMinutes)m)")
             acceptBtn.keyEquivalent = "\r"
             
             if isCounter && result.round < 2 {
                 // Counter-Offer Round 1: [Accept] [Negotiate (Round 2)] [Decline]
-                let btnWidth = (width - 104) / 3
-                acceptBtn.frame = NSRect(x: 40, y: 32, width: btnWidth, height: 44)
+                acceptBtn.frame = NSRect(x: 40, y: 34, width: triBtnWidth, height: 48)
                 card.addSubview(acceptBtn)
                 
-                let negBtn = NSButton(title: "Negotiate (Round 2)", target: self, action: #selector(handleStartNegotiationClicked))
-                negBtn.frame = NSRect(x: 48 + btnWidth, y: 32, width: btnWidth, height: 44)
-                negBtn.bezelStyle = .rounded
-                negBtn.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+                let negBtn = KeyboardNavigableButton(title: "Negotiate (Round 2)", target: self, action: #selector(handleStartNegotiationClicked))
+                negBtn.frame = NSRect(x: 48 + triBtnWidth, y: 34, width: triBtnWidth, height: 48)
+                Self.styleSecondaryButton(negBtn, title: "Negotiate (Round 2)")
                 card.addSubview(negBtn)
                 
-                let declineBtn = NSButton(title: "Decline (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-                declineBtn.frame = NSRect(x: 56 + btnWidth * 2, y: 32, width: btnWidth, height: 44)
-                declineBtn.bezelStyle = .rounded
-                declineBtn.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+                let declineBtn = KeyboardNavigableButton(title: "Decline (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+                declineBtn.frame = NSRect(x: 56 + triBtnWidth * 2, y: 34, width: triBtnWidth, height: 48)
+                Self.styleSecondaryButton(declineBtn, title: "Decline (Esc)")
                 card.addSubview(declineBtn)
+                
+                acceptBtn.previousKeyTarget = declineBtn
+                acceptBtn.nextKeyTarget = negBtn
+                negBtn.previousKeyTarget = acceptBtn
+                negBtn.nextKeyTarget = declineBtn
+                declineBtn.previousKeyTarget = negBtn
+                declineBtn.nextKeyTarget = acceptBtn
+                
+                DispatchQueue.main.async { [weak acceptBtn] in
+                    acceptBtn?.window?.makeFirstResponder(acceptBtn)
+                }
             } else {
                 // Approved directly or Final Round 2
-                acceptBtn.frame = NSRect(x: 40, y: 32, width: (width - 96) / 2, height: 44)
+                acceptBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
                 card.addSubview(acceptBtn)
                 
-                let cancelBtn = NSButton(title: "Cancel (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-                cancelBtn.frame = NSRect(x: 56 + (width - 96) / 2, y: 32, width: (width - 96) / 2, height: 44)
-                cancelBtn.bezelStyle = .rounded
-                cancelBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+                let cancelBtn = KeyboardNavigableButton(title: "Cancel (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+                cancelBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
+                Self.styleSecondaryButton(cancelBtn, title: "Cancel (Esc)")
                 card.addSubview(cancelBtn)
+                
+                acceptBtn.previousKeyTarget = cancelBtn
+                acceptBtn.nextKeyTarget = cancelBtn
+                cancelBtn.previousKeyTarget = acceptBtn
+                cancelBtn.nextKeyTarget = acceptBtn
+                
+                DispatchQueue.main.async { [weak acceptBtn] in
+                    acceptBtn?.window?.makeFirstResponder(acceptBtn)
+                }
             }
         } else {
             // Declined
             if result.round < 2 {
-                let btnWidth = (width - 104) / 3
-                let negBtn = NSButton(title: "Negotiate (Round 2)", target: self, action: #selector(handleStartNegotiationClicked))
-                negBtn.frame = NSRect(x: 40, y: 32, width: btnWidth, height: 44)
-                negBtn.bezelStyle = .rounded
-                negBtn.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+                let negBtn = KeyboardNavigableButton(title: "Negotiate (Round 2)", target: self, action: #selector(handleStartNegotiationClicked))
+                negBtn.frame = NSRect(x: 40, y: 34, width: triBtnWidth, height: 48)
+                Self.stylePrimaryButton(negBtn, title: "Negotiate (Round 2)")
                 card.addSubview(negBtn)
                 
-                let remBtn = NSButton(title: "Add Reminders", target: self, action: #selector(handleOpenRemindersClicked))
-                remBtn.frame = NSRect(x: 48 + btnWidth, y: 32, width: btnWidth, height: 44)
-                remBtn.bezelStyle = .rounded
-                remBtn.font = NSFont.systemFont(ofSize: 12, weight: .semibold)
+                let remBtn = KeyboardNavigableButton(title: "Add Reminders", target: self, action: #selector(handleOpenRemindersClicked))
+                remBtn.frame = NSRect(x: 48 + triBtnWidth, y: 34, width: triBtnWidth, height: 48)
+                Self.styleSecondaryButton(remBtn, title: "Add Reminders")
                 card.addSubview(remBtn)
                 
-                let backBtn = NSButton(title: "Back (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-                backBtn.frame = NSRect(x: 56 + btnWidth * 2, y: 32, width: btnWidth, height: 44)
-                backBtn.bezelStyle = .rounded
-                backBtn.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+                let backBtn = KeyboardNavigableButton(title: "Back (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+                backBtn.frame = NSRect(x: 56 + triBtnWidth * 2, y: 34, width: triBtnWidth, height: 48)
+                Self.styleSecondaryButton(backBtn, title: "Back (Esc)")
                 card.addSubview(backBtn)
+                
+                negBtn.previousKeyTarget = backBtn
+                negBtn.nextKeyTarget = remBtn
+                remBtn.previousKeyTarget = negBtn
+                remBtn.nextKeyTarget = backBtn
+                backBtn.previousKeyTarget = remBtn
+                backBtn.nextKeyTarget = negBtn
+                
+                DispatchQueue.main.async { [weak negBtn] in
+                    negBtn?.window?.makeFirstResponder(negBtn)
+                }
             } else {
-                let remBtn = NSButton(title: "Open in Apple Reminders", target: self, action: #selector(handleOpenRemindersClicked))
-                remBtn.frame = NSRect(x: 40, y: 32, width: (width - 96) / 2, height: 44)
-                remBtn.bezelStyle = .rounded
-                remBtn.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+                let remBtn = KeyboardNavigableButton(title: "Open Apple Reminders", target: self, action: #selector(handleOpenRemindersClicked))
+                remBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
+                Self.stylePrimaryButton(remBtn, title: "Open Apple Reminders")
                 card.addSubview(remBtn)
                 
-                let backBtn = NSButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-                backBtn.frame = NSRect(x: 56 + (width - 96) / 2, y: 32, width: (width - 96) / 2, height: 44)
-                backBtn.bezelStyle = .rounded
-                backBtn.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+                let backBtn = KeyboardNavigableButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+                backBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
+                Self.styleSecondaryButton(backBtn, title: "Return to Curfew (Esc)")
                 card.addSubview(backBtn)
+                
+                remBtn.previousKeyTarget = backBtn
+                remBtn.nextKeyTarget = backBtn
+                backBtn.previousKeyTarget = remBtn
+                backBtn.nextKeyTarget = remBtn
+                
+                DispatchQueue.main.async { [weak remBtn] in
+                    remBtn?.window?.makeFirstResponder(remBtn)
+                }
             }
         }
     }
@@ -980,15 +1201,15 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         requestedMinutes: Int
     ) {
         let badge = NSTextField(labelWithString: "ROUND 2 OF 2: SCOPE CONCESSION")
-        badge.frame = NSRect(x: (width - 320) / 2, y: height - 40, width: 320, height: 16)
+        badge.frame = NSRect(x: (width - 320) / 2, y: height - 42, width: 320, height: 16)
         badge.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .heavy)
         badge.textColor = NSColor.systemYellow
         badge.alignment = .center
         card.addSubview(badge)
         
         let titleLabel = NSTextField(labelWithString: "Negotiate with Curfew AI")
-        titleLabel.frame = NSRect(x: 20, y: height - 74, width: width - 40, height: 28)
-        titleLabel.font = NSFont.systemFont(ofSize: 21, weight: .bold)
+        titleLabel.frame = NSRect(x: 20, y: height - 76, width: width - 40, height: 28)
+        titleLabel.font = NSFont.systemFont(ofSize: 22, weight: .bold)
         titleLabel.textColor = NSColor.white
         titleLabel.alignment = .center
         card.addSubview(titleLabel)
@@ -996,26 +1217,24 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         let offeredTime = previousResult.grantedMinutes > 0 ? previousResult.grantedMinutes : requestedMinutes
         let subText = "The model offered \(offeredTime)m for a reduced deliverable.\nWhat scope will you cut so you can sleep faster?"
         let subLabel = NSTextField(wrappingLabelWithString: subText)
-        subLabel.frame = NSRect(x: 30, y: height - 126, width: width - 60, height: 40)
+        subLabel.frame = NSRect(x: 30, y: height - 132, width: width - 60, height: 44)
         subLabel.font = NSFont.systemFont(ofSize: 13)
         subLabel.textColor = NSColor(calibratedWhite: 0.80, alpha: 1.0)
         subLabel.alignment = .center
         card.addSubview(subLabel)
         
+        let fieldWidth = width - 80
+        
         // Scope Concession Input Field
         let label1 = NSTextField(labelWithString: "YOUR SCOPE CONCESSION")
-        label1.frame = NSRect(x: 40, y: height - 180, width: width - 80, height: 16)
+        label1.frame = NSRect(x: 40, y: height - 188, width: fieldWidth, height: 16)
         label1.font = NSFont.monospacedSystemFont(ofSize: 10, weight: .bold)
         label1.textColor = NSColor(calibratedWhite: 0.55, alpha: 1.0)
         card.addSubview(label1)
         
-        let cField = NSTextField(frame: NSRect(x: 40, y: height - 230, width: width - 80, height: 42))
+        let cField = NSTextField(frame: NSRect(x: 40, y: height - 240, width: fieldWidth, height: 44))
+        Self.styleInputField(cField)
         cField.font = NSFont.systemFont(ofSize: 13)
-        cField.textColor = NSColor.white
-        cField.isBezeled = true
-        cField.bezelStyle = .roundedBezel
-        cField.backgroundColor = NSColor(calibratedRed: 0.05, green: 0.07, blue: 0.12, alpha: 1.0)
-        cField.focusRingType = .exterior
         cField.placeholderString = "e.g. I will skip formatting and only write the core 2 paragraphs"
         cField.stringValue = ""
         cField.delegate = self
@@ -1023,30 +1242,31 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         self.concessionField = cField
         
         let note = NSTextField(wrappingLabelWithString: "Final Round Policy: Conceding non-essential work protects recovery while meeting true deadlines. Model sets the final verdict.")
-        note.frame = NSRect(x: 40, y: height - 310, width: width - 80, height: 48)
+        note.frame = NSRect(x: 40, y: height - 325, width: fieldWidth, height: 48)
         note.font = NSFont.systemFont(ofSize: 12)
         note.textColor = NSColor(calibratedWhite: 0.55, alpha: 1.0)
         note.alignment = .center
         card.addSubview(note)
         
         // Action Buttons Row
-        let submitBtn = NSButton(title: "Submit Concession (Return)", target: self, action: #selector(handleSubmitConcessionClicked))
-        submitBtn.frame = NSRect(x: 40, y: 32, width: (width - 96) / 2, height: 44)
-        submitBtn.bezelStyle = .rounded
-        submitBtn.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        let btnWidth = (width - 96) / 2
+        let submitBtn = KeyboardNavigableButton(title: "Submit Concession (Return)", target: self, action: #selector(handleSubmitConcessionClicked))
+        submitBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
+        Self.stylePrimaryButton(submitBtn, title: "Submit Concession (Return)")
         submitBtn.keyEquivalent = "\r"
         card.addSubview(submitBtn)
         self.submitConcessionButton = submitBtn
         
-        let backBtn = NSButton(title: "Back to Offer (Esc)", target: self, action: #selector(handleBackToAIDecisionClicked))
-        backBtn.frame = NSRect(x: 56 + (width - 96) / 2, y: 32, width: (width - 96) / 2, height: 44)
-        backBtn.bezelStyle = .rounded
-        backBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        let backBtn = KeyboardNavigableButton(title: "Back to Offer (Esc)", target: self, action: #selector(handleBackToAIDecisionClicked))
+        backBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
+        Self.styleSecondaryButton(backBtn, title: "Back to Offer (Esc)")
         card.addSubview(backBtn)
         
         cField.nextKeyView = submitBtn
-        submitBtn.nextKeyView = backBtn
-        backBtn.nextKeyView = cField
+        submitBtn.previousKeyTarget = cField
+        submitBtn.nextKeyTarget = backBtn
+        backBtn.previousKeyTarget = submitBtn
+        backBtn.nextKeyTarget = cField
         
         DispatchQueue.main.async { [weak cField] in
             guard let cf = cField, let window = cf.window else { return }
@@ -1065,78 +1285,88 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
         
         let titleLabel = NSTextField(labelWithString: result.decisionSummary)
         titleLabel.frame = NSRect(x: 20, y: height - 84, width: width - 40, height: 28)
-        titleLabel.font = NSFont.systemFont(ofSize: 20, weight: .bold)
+        titleLabel.font = NSFont.systemFont(ofSize: 22, weight: .bold)
         titleLabel.textColor = NSColor.white
         titleLabel.alignment = .center
         card.addSubview(titleLabel)
         
         let reasonLabel = NSTextField(wrappingLabelWithString: result.reasoning)
-        reasonLabel.frame = NSRect(x: 40, y: height - 240, width: width - 80, height: 140)
+        reasonLabel.frame = NSRect(x: 40, y: height - 250, width: width - 80, height: 150)
         reasonLabel.font = NSFont.systemFont(ofSize: 13)
         reasonLabel.textColor = NSColor(calibratedWhite: 0.85, alpha: 1.0)
         reasonLabel.alignment = .center
         card.addSubview(reasonLabel)
         
-        let remindersBtn = NSButton(title: "Open in Apple Reminders", target: self, action: #selector(handleOpenRemindersClicked))
-        remindersBtn.frame = NSRect(x: 40, y: 36, width: (width - 96) / 2, height: 44)
-        remindersBtn.bezelStyle = .rounded
-        remindersBtn.font = NSFont.systemFont(ofSize: 12, weight: .bold)
+        let btnWidth = (width - 96) / 2
+        let remindersBtn = KeyboardNavigableButton(title: "Open Apple Reminders", target: self, action: #selector(handleOpenRemindersClicked))
+        remindersBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
+        Self.stylePrimaryButton(remindersBtn, title: "Open Apple Reminders")
         card.addSubview(remindersBtn)
         
-        let backBtn = NSButton(title: "Return to Curfew", target: self, action: #selector(handleBackToOverviewClicked))
-        backBtn.frame = NSRect(x: 56 + (width - 96) / 2, y: 36, width: (width - 96) / 2, height: 44)
-        backBtn.bezelStyle = .rounded
-        backBtn.font = NSFont.systemFont(ofSize: 12, weight: .medium)
+        let backBtn = KeyboardNavigableButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+        backBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
+        Self.styleSecondaryButton(backBtn, title: "Return to Curfew (Esc)")
         card.addSubview(backBtn)
+        
+        remindersBtn.previousKeyTarget = backBtn
+        remindersBtn.nextKeyTarget = backBtn
+        backBtn.previousKeyTarget = remindersBtn
+        backBtn.nextKeyTarget = remindersBtn
+        
+        DispatchQueue.main.async { [weak remindersBtn] in
+            remindersBtn?.window?.makeFirstResponder(remindersBtn)
+        }
     }
     
     // MARK: 7. Embedded Emergency Override View
     private func renderEmergencyView(in card: NSView, width: CGFloat, height: CGFloat) {
         let badge = NSTextField(labelWithString: "EMERGENCY OVERRIDE")
-        badge.frame = NSRect(x: (width - 240) / 2, y: height - 42, width: 240, height: 18)
+        badge.frame = NSRect(x: (width - 260) / 2, y: height - 44, width: 260, height: 18)
         badge.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .heavy)
         badge.textColor = NSColor.systemRed
         badge.alignment = .center
         card.addSubview(badge)
         
         let titleLabel = NSTextField(labelWithString: "Accountability Alert")
-        titleLabel.frame = NSRect(x: 20, y: height - 76, width: width - 40, height: 26)
-        titleLabel.font = NSFont.systemFont(ofSize: 19, weight: .bold)
+        titleLabel.frame = NSRect(x: 20, y: height - 80, width: width - 40, height: 28)
+        titleLabel.font = NSFont.systemFont(ofSize: 22, weight: .bold)
         titleLabel.textColor = NSColor.white
         titleLabel.alignment = .center
         card.addSubview(titleLabel)
         
         let subLabel = NSTextField(wrappingLabelWithString: "Dispatches SMS to \(Config.girlfriendContact) with your reason.\nEnter brief description:")
-        subLabel.frame = NSRect(x: 30, y: height - 140, width: width - 60, height: 44)
-        subLabel.font = NSFont.systemFont(ofSize: 12)
+        subLabel.frame = NSRect(x: 30, y: height - 146, width: width - 60, height: 44)
+        subLabel.font = NSFont.systemFont(ofSize: 13)
         subLabel.textColor = NSColor(calibratedWhite: 0.8, alpha: 1.0)
         subLabel.alignment = .center
         card.addSubview(subLabel)
         
-        let field = NSTextField(frame: NSRect(x: 40, y: height - 200, width: width - 80, height: 36))
+        let fieldWidth = width - 80
+        let field = NSTextField(frame: NSRect(x: 40, y: height - 215, width: fieldWidth, height: 38))
+        Self.styleInputField(field)
         field.placeholderString = "Reason for emergency unlock"
         field.font = NSFont.systemFont(ofSize: 13)
-        field.focusRingType = .exterior
         field.delegate = self
         card.addSubview(field)
         self.emergencyReasonField = field
         
-        let sendBtn = NSButton(title: "Send Alert & Unlock", target: self, action: #selector(handleSubmitEmergencyClicked))
-        sendBtn.frame = NSRect(x: 40, y: 36, width: (width - 96) / 2, height: 44)
-        sendBtn.bezelStyle = .rounded
-        sendBtn.font = NSFont.systemFont(ofSize: 13, weight: .bold)
+        let btnWidth = (width - 96) / 2
+        let sendBtn = KeyboardNavigableButton(title: "Send Alert & Unlock", target: self, action: #selector(handleSubmitEmergencyClicked))
+        sendBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
+        Self.styleEmergencyButton(sendBtn, title: "Send Alert & Unlock")
         card.addSubview(sendBtn)
         self.submitEmergencyButton = sendBtn
         
-        let cancelBtn = NSButton(title: "Cancel (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
-        cancelBtn.frame = NSRect(x: 56 + (width - 96) / 2, y: 36, width: (width - 96) / 2, height: 44)
-        cancelBtn.bezelStyle = .rounded
-        cancelBtn.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        let cancelBtn = KeyboardNavigableButton(title: "Cancel (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
+        cancelBtn.frame = NSRect(x: 56 + btnWidth, y: 34, width: btnWidth, height: 48)
+        Self.styleSecondaryButton(cancelBtn, title: "Cancel (Esc)")
         card.addSubview(cancelBtn)
         
         field.nextKeyView = sendBtn
-        sendBtn.nextKeyView = cancelBtn
-        cancelBtn.nextKeyView = field
+        sendBtn.previousKeyTarget = field
+        sendBtn.nextKeyTarget = cancelBtn
+        cancelBtn.previousKeyTarget = sendBtn
+        cancelBtn.nextKeyTarget = field
         
         DispatchQueue.main.async { [weak field] in
             guard let f = field, let window = f.window else { return }
@@ -1273,8 +1503,22 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     }
 }
 
-// MARK: - NSTextFieldDelegate (Tab & Return Key Navigation)
+// MARK: - NSTextFieldDelegate (Tab & Return Key Navigation, Reactive Focus Glow)
 extension CurfewLockScreenController {
+    public func controlTextDidBeginEditing(_ obj: Notification) {
+        if let field = obj.object as? NSTextField {
+            field.layer?.borderColor = NSColor.systemTeal.withAlphaComponent(0.85).cgColor
+            field.layer?.borderWidth = 1.5
+        }
+    }
+    
+    public func controlTextDidEndEditing(_ obj: Notification) {
+        if let field = obj.object as? NSTextField {
+            field.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor
+            field.layer?.borderWidth = 1.2
+        }
+    }
+    
     public func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
         // Tab key navigation: Jump down to next field
         if commandSelector == #selector(NSResponder.insertTab(_:)) {
@@ -1307,6 +1551,11 @@ extension CurfewLockScreenController {
             if control == consequenceField {
                 if let prev = taskField {
                     prev.window?.makeFirstResponder(prev)
+                    return true
+                }
+            } else if control == taskField {
+                if let cancel = cancelProposalButton {
+                    cancel.window?.makeFirstResponder(cancel)
                     return true
                 }
             }
