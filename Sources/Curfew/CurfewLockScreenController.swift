@@ -1153,9 +1153,9 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
                 Self.stylePrimaryButton(negBtn, title: "Negotiate (Round 2)")
                 card.addSubview(negBtn)
                 
-                let remBtn = KeyboardNavigableButton(title: "Add Reminders", target: self, action: #selector(handleOpenRemindersClicked))
+                let remBtn = KeyboardNavigableButton(title: "Add to Reminders (6 PM)", target: self, action: #selector(handleAddReminderFromDecisionClicked(_:)))
                 remBtn.frame = NSRect(x: 48 + triBtnWidth, y: 34, width: triBtnWidth, height: 48)
-                Self.styleSecondaryButton(remBtn, title: "Add Reminders")
+                Self.styleSecondaryButton(remBtn, title: "Add to Reminders (6 PM)")
                 card.addSubview(remBtn)
                 
                 let backBtn = KeyboardNavigableButton(title: "Back (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
@@ -1174,9 +1174,9 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
                     negBtn?.window?.makeFirstResponder(negBtn)
                 }
             } else {
-                let remBtn = KeyboardNavigableButton(title: "Open Apple Reminders", target: self, action: #selector(handleOpenRemindersClicked))
+                let remBtn = KeyboardNavigableButton(title: "Add to Reminders (Tomorrow 6 PM)", target: self, action: #selector(handleAddReminderFromDecisionClicked(_:)))
                 remBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
-                Self.stylePrimaryButton(remBtn, title: "Open Apple Reminders")
+                Self.stylePrimaryButton(remBtn, title: "Add to Reminders (Tomorrow 6 PM)")
                 card.addSubview(remBtn)
                 
                 let backBtn = KeyboardNavigableButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
@@ -1411,6 +1411,25 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
             return
         }
         triggerMacSleep()
+    }
+    
+    @objc private func handleAddReminderFromDecisionClicked(_ sender: NSButton) {
+        guard case .aiDecision(_, let originalTask, let originalConsequence, _) = currentCardState else {
+            RemindersBridge.shared.openRemindersApp()
+            return
+        }
+        
+        let notes = "Created by Curfew past bedtime.\nConsequence noted: \(originalConsequence)"
+        RemindersBridge.shared.createSmartNoReminder(
+            taskTitle: originalTask,
+            notes: notes,
+            dueHour: 18,
+            dueMinute: 0
+        )
+        
+        sender.title = "✅ Saved (Tomorrow 6 PM)"
+        sender.isEnabled = false
+        sender.layer?.borderColor = NSColor.systemGreen.cgColor
     }
     
     @objc private func handleOpenRemindersClicked() {
