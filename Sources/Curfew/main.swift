@@ -84,8 +84,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self?.updateMenuState()
         }
         
-        ChimeTimerManager.shared.onSessionExpired = { [weak self] _ in
+        ChimeTimerManager.shared.onSessionExpired = { [weak self] expiredTask in
             FloatingHUDController.shared.hide()
+            SessionLedgerManager.shared.recordExtensionCompleted(taskTitle: expiredTask, minutes: 0, early: false)
             StorageManager.shared.update { state in
                 state.focusModeActive = false
             }
@@ -106,7 +107,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let secs = result.grantedSeconds > 0 ? result.grantedSeconds : result.grantedMinutes * 60
             CurfewLockScreenController.shared.unlockAllScreens()
             ChimeTimerManager.shared.startSession(seconds: secs, taskName: result.taskTitle)
-            FloatingHUDController.shared.show(taskName: result.taskTitle, initialSeconds: secs)
+            FloatingHUDController.shared.show(taskName: result.taskTitle, suggestedScope: result.suggestedScope, initialSeconds: secs)
             
             StorageManager.shared.update { s in
                 s.focusModeActive = true
@@ -397,8 +398,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc private func taskCompleteAction() {
+        let taskName = StorageManager.shared.state.currentSessionName
         FloatingHUDController.shared.hide()
         ChimeTimerManager.shared.markDoneEarly()
+        SessionLedgerManager.shared.recordExtensionCompleted(taskTitle: taskName, minutes: 0, early: true)
         StorageManager.shared.update { s in
             s.focusModeActive = false
         }

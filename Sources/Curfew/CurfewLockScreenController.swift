@@ -1058,15 +1058,21 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
             box.addSubview(scopeLabel)
         }
         
-        // Sleep Debt Metric
+        // Sleep Context Metric
         let sleep = HealthContextBridge.shared.fetchSleepMetrics()
         let hour = Calendar.current.component(.hour, from: Date())
         let minute = Calendar.current.component(.minute, from: Date())
         var minsPast = 0
-        if hour >= 22 { minsPast = (hour - 22) * 60 + minute }
-        else if hour < 5 { minsPast = (hour + 2) * 60 + minute }
+        if hour >= Config.weeknightBedtimeStartHour {
+            minsPast = (hour - Config.weeknightBedtimeStartHour) * 60 + minute
+        } else if hour < Config.weeknightBedtimeEndHour {
+            minsPast = (hour + (24 - Config.weeknightBedtimeStartHour)) * 60 + minute
+        }
         
-        let sleepMetrics = NSTextField(labelWithString: "Context: Sleep Debt \(sleep.cumulativeSleepDebtHours)h  •  Curfew +\(minsPast)m")
+        let sleepLabelText = sleep.isStale
+            ? "Context: HealthKit Sync Inactive (\(sleep.daysSinceLastSync)d ago)  •  Curfew +\(minsPast)m"
+            : "Context: Sleep Debt \(sleep.cumulativeSleepDebtHours)h  •  Curfew +\(minsPast)m"
+        let sleepMetrics = NSTextField(labelWithString: sleepLabelText)
         sleepMetrics.frame = NSRect(x: 16, y: 172, width: width - 112, height: 18)
         sleepMetrics.font = NSFont.monospacedDigitSystemFont(ofSize: 11, weight: .medium)
         sleepMetrics.textColor = NSColor(calibratedWhite: 0.65, alpha: 1.0)

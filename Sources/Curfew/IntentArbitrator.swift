@@ -42,7 +42,7 @@ public final class IntentArbitrator: @unchecked Sendable {
     
     private init() {}
     
-    /// Evaluates spoken or typed intent based on the Agency Template:
+    /// Evaluates spoken or typed intent based on the Agency Template (Offline Heuristic Fallback):
     /// "I am going to go to bed [X] minutes past my bedtime so that I can [Action]. If I don't do this now, [Impact], and doing it now will [Value]."
     public func evaluate(spokenText: String, followUpHour: Int = 18, followUpMinute: Int = 0) -> ArbitrationResult {
         let sleepMetrics = HealthContextBridge.shared.fetchSleepMetrics()
@@ -51,12 +51,11 @@ public final class IntentArbitrator: @unchecked Sendable {
         let hour = calendar.component(.hour, from: now)
         let minute = calendar.component(.minute, from: now)
         
-        // Calculate minutes past 10:00 PM curfew
         var minutesPastCurfew = 0
-        if hour >= 22 {
-            minutesPastCurfew = (hour - 22) * 60 + minute
-        } else if hour < 5 {
-            minutesPastCurfew = (hour + 2) * 60 + minute // After midnight
+        if hour >= Config.weeknightBedtimeStartHour {
+            minutesPastCurfew = (hour - Config.weeknightBedtimeStartHour) * 60 + minute
+        } else if hour < Config.weeknightBedtimeEndHour {
+            minutesPastCurfew = (hour + (24 - Config.weeknightBedtimeStartHour)) * 60 + minute
         }
         
         let textLower = spokenText.lowercased()
@@ -118,21 +117,25 @@ public final class IntentArbitrator: @unchecked Sendable {
         // 4. Multi-Factor Scoring Math
         var netScore = urgencyScore * 20.0
         
+        // Factor in tonight's existing extensions
+        let summaryTonight = SessionLedgerManager.shared.summaryForTonight()
+        if summaryTonight.totalMinutes > 0 {
+            netScore -= Double(summaryTonight.totalMinutes) * 1.5
+        }
+        if summaryTonight.requests > 1 {
+            netScore -= Double(summaryTonight.requests) * 8.0
+        }
+        
         // Penalty for minutes past curfew
         netScore -= Double(minutesPastCurfew) * 0.4
         
-        // Penalty for cumulative 7-day sleep debt (relative to 8.0h target)
-        netScore -= sleepMetrics.cumulativeSleepDebtHours * 4.0
-        
-        // Penalty if last night was below the critical 7.0h floor
-        if sleepMetrics.lastNightHours < Config.minimumAcceptableSleepHours {
-            let deficit = Config.minimumAcceptableSleepHours - sleepMetrics.lastNightHours
-            netScore -= (deficit * 18.0)
-        }
-        
-        // Penalty for consecutive days under 7.0h
-        if sleepMetrics.consecutiveUnderSleptDays >= 2 {
-            netScore -= Double(sleepMetrics.consecutiveUnderSleptDays) * 10.0
+        // Only penalize sleep debt if sleep metrics are fresh
+        if !sleepMetrics.isStale {
+            netScore -= sleepMetrics.cumulativeSleepDebtHours * 4.0
+            if sleepMetrics.lastNightHours < Config.minimumAcceptableSleepHours {
+                let deficit = Config.minimumAcceptableSleepHours - sleepMetrics.lastNightHours
+                netScore -= (deficit * 18.0)
+            }
         }
         
         // 5. Decision Threshold (Passing score: 45.0)
@@ -157,8 +160,7 @@ public final class IntentArbitrator: @unchecked Sendable {
                 isDivertedToReminders: false
             )
         } else {
-            // Smart No: Divert to Apple Reminders (Default 6:00 PM)
-            let notes = "Context: \(spokenText)\n7d Sleep Debt: \(sleepMetrics.cumulativeSleepDebtHours)h\nCurfew Offset: +\(minutesPastCurfew)m"
+            let notes = "Context: \(spokenText)\nCurfew Offset: +\(minutesPastCurfew)m"
             RemindersBridge.shared.createSmartNoReminder(
                 taskTitle: extractedAction.capitalized,
                 notes: notes,
@@ -168,7 +170,7 @@ public final class IntentArbitrator: @unchecked Sendable {
             
             let timeFmt = followUpHour > 12 ? "\(followUpHour - 12):\(String(format: "%02d", followUpMinute)) PM" : "\(followUpHour):\(String(format: "%02d", followUpMinute)) AM"
             let summary = "Request Denied"
-            let reasoning = "7d sleep debt is \(sleepMetrics.cumulativeSleepDebtHours)h (< 8.0h target). Created follow-up in Reminders for tomorrow \(timeFmt)."
+            let reasoning = "Curfew past cutoff. Created follow-up in Reminders for tomorrow \(timeFmt)."
             
             return ArbitrationResult(
                 isApproved: false,
@@ -182,7 +184,7 @@ public final class IntentArbitrator: @unchecked Sendable {
         }
     }
     
-    /// Evaluates late-night intent using local Ollama model (llama3.1:8b) with fallback to heuristic logic
+    /// Evaluates late-night intent using local Ollama model (llama3.1:8b) with continuous multi-turn memory
     public func evaluateWithAI(
         task: String,
         consequence: String,
@@ -192,29 +194,13 @@ public final class IntentArbitrator: @unchecked Sendable {
         followUpHour: Int = 18,
         followUpMinute: Int = 0
     ) async -> ArbitrationResult {
-        let sleepMetrics = HealthContextBridge.shared.fetchSleepMetrics()
-        let now = Date()
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: now)
-        let minute = calendar.component(.minute, from: now)
-        
-        var minutesPastCurfew = 0
-        if hour >= 22 {
-            minutesPastCurfew = (hour - 22) * 60 + minute
-        } else if hour < 5 {
-            minutesPastCurfew = (hour + 2) * 60 + minute
-        }
-        
         do {
             let aiResponse = try await OllamaBridge.shared.evaluateIntent(
                 task: task,
                 consequence: consequence,
                 requestedMinutes: requestedMinutes,
                 concession: concession,
-                round: round,
-                sleepDebtHours: sleepMetrics.cumulativeSleepDebtHours,
-                lastNightSleepHours: sleepMetrics.lastNightHours,
-                minutesPastCurfew: minutesPastCurfew
+                round: round
             )
             
             let isApproved = aiResponse.decision.lowercased() == "approved"
@@ -241,6 +227,14 @@ public final class IntentArbitrator: @unchecked Sendable {
             } else {
                 let summary = "Request Denied"
                 
+                // If denied, create follow-up reminder
+                RemindersBridge.shared.createSmartNoReminder(
+                    taskTitle: title.capitalized,
+                    notes: "Late night task diverted: \(task). Consequence noted: \(consequence).",
+                    dueHour: followUpHour,
+                    dueMinute: followUpMinute
+                )
+                
                 return ArbitrationResult(
                     isApproved: false,
                     grantedMinutes: 0,
@@ -248,7 +242,7 @@ public final class IntentArbitrator: @unchecked Sendable {
                     decisionSummary: summary,
                     reasoning: aiResponse.reasoning,
                     taskTitle: title,
-                    isDivertedToReminders: false,
+                    isDivertedToReminders: true,
                     isCounterOffer: false,
                     suggestedScope: "",
                     round: round
