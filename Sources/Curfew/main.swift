@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var preLockWarningTestMenuItem: NSMenuItem!
     private var fastCountdownTestMenuItem: NSMenuItem!
     private var emergencyUnlockMenuItem: NSMenuItem!
+    private var launchAtLoginMenuItem: NSMenuItem!
     
     private var isSimulatingCurfew: Bool = false
     private var isCurfewManuallySuppressed: Bool = false
@@ -197,6 +198,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         statusMenu.addItem(NSMenuItem.separator())
         
+        // Launch at Login
+        launchAtLoginMenuItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launchAtLoginMenuItem.target = self
+        statusMenu.addItem(launchAtLoginMenuItem)
+        
         // Quit
         let quitItem = NSMenuItem(title: "Quit Curfew", action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
@@ -333,6 +339,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         untimedDevTestMenuItem.state = (isSimulatingCurfew && testModeDuration == nil) ? .on : .off
         timedDevTestMenuItem.state = (isSimulatingCurfew && testModeDuration != nil) ? .on : .off
+        launchAtLoginMenuItem?.state = isLaunchAtLoginEnabled() ? .on : .off
         
         // Context-sensitive actions
         emergencyResolvedMenuItem.isHidden = !isEmergencyActive
@@ -413,6 +420,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         StorageManager.shared.update { s in
             s.focusModeActive = false
             s.currentSessionName = "Deep Focus"
+        }
+        updateMenuState()
+    }
+    
+    // MARK: - Launch at Login
+    private func isLaunchAtLoginEnabled() -> Bool {
+        let checkScript = "tell application \"System Events\" to exists (login item \"Curfew\")"
+        if let script = NSAppleScript(source: checkScript) {
+            var error: NSDictionary?
+            let res = script.executeAndReturnError(&error)
+            if error == nil && res.booleanValue {
+                return true
+            }
+        }
+        return false
+    }
+    
+    @objc private func toggleLaunchAtLogin() {
+        let currentlyEnabled = isLaunchAtLoginEnabled()
+        if currentlyEnabled {
+            let removeScript = "tell application \"System Events\" to if exists (login item \"Curfew\") then delete (login item \"Curfew\")"
+            if let script = NSAppleScript(source: removeScript) {
+                var error: NSDictionary?
+                script.executeAndReturnError(&error)
+            }
+        } else {
+            let addScript = "tell application \"System Events\" to if not (exists (login item \"Curfew\")) then make new login item at end with properties {path:\"/Applications/Curfew.app\", hidden:false, name:\"Curfew\"}"
+            if let script = NSAppleScript(source: addScript) {
+                var error: NSDictionary?
+                script.executeAndReturnError(&error)
+            }
         }
         updateMenuState()
     }
