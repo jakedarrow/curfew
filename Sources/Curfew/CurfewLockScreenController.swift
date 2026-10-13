@@ -73,6 +73,42 @@ public final class KeyboardNavigableSegmentedControl: NSSegmentedControl {
     public override var acceptsFirstResponder: Bool { true }
     public override var canBecomeKeyView: Bool { true }
     
+    public override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        self.focusRingType = .none
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        self.focusRingType = .none
+    }
+    
+    public override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok {
+            wantsLayer = true
+            layer?.borderColor = NSColor(calibratedRed: 0.38, green: 0.85, blue: 0.98, alpha: 1.0).cgColor
+            layer?.borderWidth = 2.0
+            layer?.cornerRadius = 10
+            layer?.shadowColor = NSColor(calibratedRed: 0.38, green: 0.85, blue: 0.98, alpha: 0.6).cgColor
+            layer?.shadowRadius = 8
+            layer?.shadowOpacity = 0.8
+            layer?.shadowOffset = .zero
+        }
+        return ok
+    }
+    
+    public override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok {
+            layer?.borderColor = NSColor.white.withAlphaComponent(0.20).cgColor
+            layer?.borderWidth = 1.0
+            layer?.shadowOpacity = 0.0
+            layer?.shadowRadius = 0
+        }
+        return ok
+    }
+    
     public override func keyDown(with event: NSEvent) {
         if event.keyCode == 48 { // Tab
             if event.modifierFlags.contains(.shift) {
@@ -119,8 +155,58 @@ public final class KeyboardNavigableButton: NSButton {
     public weak var nextKeyTarget: NSResponder?
     public var customAction: (() -> Void)?
     
+    public var normalBorderColor: CGColor?
+    public var normalBorderWidth: CGFloat = 1.0
+    
     public override var acceptsFirstResponder: Bool { true }
     public override var canBecomeKeyView: Bool { true }
+    
+    public override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        self.focusRingType = .none
+    }
+    
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        self.focusRingType = .none
+    }
+    
+    public override func becomeFirstResponder() -> Bool {
+        let ok = super.becomeFirstResponder()
+        if ok {
+            updateFocusVisuals(isFocused: true)
+        }
+        return ok
+    }
+    
+    public override func resignFirstResponder() -> Bool {
+        let ok = super.resignFirstResponder()
+        if ok {
+            updateFocusVisuals(isFocused: false)
+        }
+        return ok
+    }
+    
+    public func updateFocusVisuals(isFocused: Bool) {
+        wantsLayer = true
+        if isFocused {
+            if normalBorderColor == nil {
+                normalBorderColor = layer?.borderColor
+                normalBorderWidth = layer?.borderWidth ?? 1.0
+            }
+            layer?.borderColor = NSColor(calibratedRed: 0.38, green: 0.85, blue: 0.98, alpha: 1.0).cgColor
+            layer?.borderWidth = 2.0
+            layer?.shadowColor = NSColor(calibratedRed: 0.38, green: 0.85, blue: 0.98, alpha: 0.6).cgColor
+            layer?.shadowRadius = 8
+            layer?.shadowOpacity = 0.8
+            layer?.shadowOffset = .zero
+        } else {
+            layer?.borderColor = normalBorderColor ?? NSColor.white.withAlphaComponent(0.20).cgColor
+            layer?.borderWidth = normalBorderWidth
+            layer?.shadowOpacity = 0.0
+            layer?.shadowRadius = 0
+        }
+    }
     
     public override func keyDown(with event: NSEvent) {
         if event.keyCode == 48 { // Tab
@@ -225,12 +311,18 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     
     public static func stylePrimaryButton(_ button: NSButton, title: String? = nil) {
         button.wantsLayer = true
+        button.focusRingType = .none
+        let borderColor = NSColor.systemTeal.withAlphaComponent(0.65).cgColor
         button.layer?.backgroundColor = NSColor(calibratedRed: 0.18, green: 0.28, blue: 0.52, alpha: 0.50).cgColor
         button.layer?.cornerRadius = 12
         button.layer?.cornerCurve = .continuous
-        button.layer?.borderColor = NSColor.systemTeal.withAlphaComponent(0.65).cgColor
+        button.layer?.borderColor = borderColor
         button.layer?.borderWidth = 1.5
         button.isBordered = false
+        if let kb = button as? KeyboardNavigableButton {
+            kb.normalBorderColor = borderColor
+            kb.normalBorderWidth = 1.5
+        }
         
         let t = title ?? button.title
         let pStyle = NSMutableParagraphStyle()
@@ -245,12 +337,18 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     
     public static func styleSecondaryButton(_ button: NSButton, title: String? = nil) {
         button.wantsLayer = true
+        button.focusRingType = .none
+        let borderColor = NSColor.white.withAlphaComponent(0.20).cgColor
         button.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
         button.layer?.cornerRadius = 12
         button.layer?.cornerCurve = .continuous
-        button.layer?.borderColor = NSColor.white.withAlphaComponent(0.20).cgColor
+        button.layer?.borderColor = borderColor
         button.layer?.borderWidth = 1.0
         button.isBordered = false
+        if let kb = button as? KeyboardNavigableButton {
+            kb.normalBorderColor = borderColor
+            kb.normalBorderWidth = 1.0
+        }
         
         let t = title ?? button.title
         let pStyle = NSMutableParagraphStyle()
@@ -265,12 +363,18 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     
     public static func styleEmergencyButton(_ button: NSButton, title: String? = nil) {
         button.wantsLayer = true
+        button.focusRingType = .none
+        let borderColor = NSColor.systemRed.withAlphaComponent(0.70).cgColor
         button.layer?.backgroundColor = NSColor(calibratedRed: 0.85, green: 0.15, blue: 0.22, alpha: 0.18).cgColor
         button.layer?.cornerRadius = 12
         button.layer?.cornerCurve = .continuous
-        button.layer?.borderColor = NSColor.systemRed.withAlphaComponent(0.70).cgColor
+        button.layer?.borderColor = borderColor
         button.layer?.borderWidth = 1.5
         button.isBordered = false
+        if let kb = button as? KeyboardNavigableButton {
+            kb.normalBorderColor = borderColor
+            kb.normalBorderWidth = 1.5
+        }
         
         let t = title ?? button.title
         let pStyle = NSMutableParagraphStyle()
@@ -484,9 +588,9 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
     private func updateTestModeLabelText() {
         guard isTestMode else { return }
         if let remaining = testModeSecondsRemaining {
-            testModeLabel?.stringValue = "Test Mode Active (Auto-unlocks in \(remaining)s) • Esc / Cmd+Shift+Esc to Exit"
+            testModeLabel?.stringValue = "Test Mode (Auto-unlocks in \(remaining)s) • Esc to Exit"
         } else {
-            testModeLabel?.stringValue = "Test Mode Active (Untimed) • Click 'Exit Test' or Press Esc to Exit"
+            testModeLabel?.stringValue = "Test Mode (Untimed) • Press Esc or Click to Exit"
         }
     }
     
@@ -555,13 +659,13 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
                 
                 let bannerText: String
                 if let remaining = testModeSecondsRemaining {
-                    bannerText = "Test Mode Active (Auto-unlocks in \(remaining)s) • Esc to Exit"
+                    bannerText = "Test Mode (Auto-unlocks in \(remaining)s) • Esc to Exit"
                 } else {
-                    bannerText = "Test Mode Active (Untimed) • Click 'Exit Test' or Press Esc to Exit"
+                    bannerText = "Test Mode (Untimed) • Press Esc or Click to Exit"
                 }
                 
                 let label = NSTextField(labelWithString: bannerText)
-                label.frame = NSRect(x: 18, y: 11, width: 430, height: 20)
+                label.frame = NSRect(x: 18, y: 11, width: 440, height: 20)
                 label.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
                 label.textColor = NSColor.systemYellow
                 banner.addSubview(label)
@@ -1153,9 +1257,9 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
                 Self.stylePrimaryButton(negBtn, title: "Negotiate (Round 2)")
                 card.addSubview(negBtn)
                 
-                let remBtn = KeyboardNavigableButton(title: "Add to Reminders (6 PM)", target: self, action: #selector(handleAddReminderFromDecisionClicked(_:)))
+                let remBtn = KeyboardNavigableButton(title: "Save Reminder (6 PM)", target: self, action: #selector(handleAddReminderFromDecisionClicked(_:)))
                 remBtn.frame = NSRect(x: 48 + triBtnWidth, y: 34, width: triBtnWidth, height: 48)
-                Self.styleSecondaryButton(remBtn, title: "Add to Reminders (6 PM)")
+                Self.styleSecondaryButton(remBtn, title: "Save Reminder (6 PM)")
                 card.addSubview(remBtn)
                 
                 let backBtn = KeyboardNavigableButton(title: "Back (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
@@ -1174,9 +1278,9 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
                     negBtn?.window?.makeFirstResponder(negBtn)
                 }
             } else {
-                let remBtn = KeyboardNavigableButton(title: "Add to Reminders (Tomorrow 6 PM)", target: self, action: #selector(handleAddReminderFromDecisionClicked(_:)))
+                let remBtn = KeyboardNavigableButton(title: "Save Reminder (Tomorrow 6 PM)", target: self, action: #selector(handleAddReminderFromDecisionClicked(_:)))
                 remBtn.frame = NSRect(x: 40, y: 34, width: btnWidth, height: 48)
-                Self.stylePrimaryButton(remBtn, title: "Add to Reminders (Tomorrow 6 PM)")
+                Self.stylePrimaryButton(remBtn, title: "Save Reminder (Tomorrow 6 PM)")
                 card.addSubview(remBtn)
                 
                 let backBtn = KeyboardNavigableButton(title: "Return to Curfew (Esc)", target: self, action: #selector(handleBackToOverviewClicked))
@@ -1427,9 +1531,14 @@ public final class CurfewLockScreenController: NSObject, NSTextFieldDelegate {
             dueMinute: 0
         )
         
-        sender.title = "✅ Saved (Tomorrow 6 PM)"
-        sender.isEnabled = false
+        Self.styleSecondaryButton(sender, title: "✅ Saved for 6 PM")
         sender.layer?.borderColor = NSColor.systemGreen.cgColor
+        sender.layer?.borderWidth = 1.5
+        if let kb = sender as? KeyboardNavigableButton {
+            kb.normalBorderColor = NSColor.systemGreen.cgColor
+            kb.normalBorderWidth = 1.5
+        }
+        sender.isEnabled = false
     }
     
     @objc private func handleOpenRemindersClicked() {

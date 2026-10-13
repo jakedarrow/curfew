@@ -160,17 +160,8 @@ public final class IntentArbitrator: @unchecked Sendable {
                 isDivertedToReminders: false
             )
         } else {
-            let notes = "Context: \(spokenText)\nCurfew Offset: +\(minutesPastCurfew)m"
-            RemindersBridge.shared.createSmartNoReminder(
-                taskTitle: extractedAction.capitalized,
-                notes: notes,
-                dueHour: followUpHour,
-                dueMinute: followUpMinute
-            )
-            
-            let timeFmt = followUpHour > 12 ? "\(followUpHour - 12):\(String(format: "%02d", followUpMinute)) PM" : "\(followUpHour):\(String(format: "%02d", followUpMinute)) AM"
             let summary = "Request Denied"
-            let reasoning = "Curfew past cutoff. Created follow-up in Reminders for tomorrow \(timeFmt)."
+            let reasoning = "Curfew past cutoff. Protect your sleep and tackle this tomorrow when well-rested."
             
             return ArbitrationResult(
                 isApproved: false,
@@ -179,7 +170,7 @@ public final class IntentArbitrator: @unchecked Sendable {
                 decisionSummary: summary,
                 reasoning: reasoning,
                 taskTitle: extractedAction,
-                isDivertedToReminders: true
+                isDivertedToReminders: false
             )
         }
     }
@@ -227,14 +218,6 @@ public final class IntentArbitrator: @unchecked Sendable {
             } else {
                 let summary = "Request Denied"
                 
-                // If denied, create follow-up reminder
-                RemindersBridge.shared.createSmartNoReminder(
-                    taskTitle: title.capitalized,
-                    notes: "Late night task diverted: \(task). Consequence noted: \(consequence).",
-                    dueHour: followUpHour,
-                    dueMinute: followUpMinute
-                )
-                
                 return ArbitrationResult(
                     isApproved: false,
                     grantedMinutes: 0,
@@ -242,7 +225,7 @@ public final class IntentArbitrator: @unchecked Sendable {
                     decisionSummary: summary,
                     reasoning: aiResponse.reasoning,
                     taskTitle: title,
-                    isDivertedToReminders: true,
+                    isDivertedToReminders: false,
                     isCounterOffer: false,
                     suggestedScope: "",
                     round: round
